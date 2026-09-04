@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#fffafd">
+<title>TO-DO!</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body data-mode="job">
+<main class="wrap">
+  <header class="hero">
+    <div class="hero-left">
+      <h1>TO-DO!</h1>
+      <div class="mode-switch" aria-label="플래너 모드">
+        <button class="mode-btn on" data-mode="job">취준</button>
+        <button class="mode-btn" data-mode="work">업무</button>
+      </div>
+    </div>
+    <div class="hero-right">
+      <button class="id-pill" id="idBtn"><span class="sync-dot local" id="syncDot"></span><span id="idText">ID</span></button>
+      <button class="today-btn" id="todayBtn">오늘로</button>
+    </div>
+  </header>
+
+  <section class="layout">
+    <div class="card calendar-card">
+      <div class="cal-head">
+        <div class="month-wrap"><strong class="month" id="monthTitle"></strong><span class="month-stats" id="monthStats"></span></div>
+        <div class="nav"><button class="icon-btn" id="prev" aria-label="이전 달">←</button><button class="icon-btn" id="next" aria-label="다음 달">→</button></div>
+      </div>
+      <div class="week"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
+      <div class="grid" id="grid"></div>
+
+      <section class="events-panel">
+        <div class="events-title"><strong>캘린더 일정</strong><span>취준 · 업무 모드에서 함께 보여요</span></div>
+        <form class="event-form" id="eventForm">
+          <div class="palette" id="palette"></div>
+          <input class="event-input" id="eventInput" maxlength="42" autocomplete="off" placeholder="예: 언니 생일 / 14:00 면접">
+          <button class="add-small">일정 추가</button>
+        </form>
+        <div class="event-list" id="eventList"></div>
+      </section>
+    </div>
+
+    <aside class="card side">
+      <div class="side-label" id="modeLabel">취준 TO-DO</div>
+      <div class="side-date" id="dateTitle"></div>
+      <div class="holiday-name" id="holidayName"></div>
+      <div class="progress">
+        <div class="ring" id="ring"><span id="pct">0%</span></div>
+        <div class="progress-copy"><strong id="pTitle">아직 할 일이 없어요</strong><span id="pSub">하나씩 적어두면 돼요.</span></div>
+      </div>
+      <form class="todo-form" id="todoForm"><input class="todo-input" id="todoInput" maxlength="80" autocomplete="off" placeholder="예: G마켓 자소서 2번 수정"><button class="todo-add">추가</button></form>
+      <div class="mood-box">
+        <div class="mood-top"><strong id="moodTitle">오늘 만족도</strong><span id="moodCaption">가볍게 기록해요</span></div>
+        <div class="rating" id="rating"></div>
+      </div>
+      <div class="todo-list" id="todoList"></div>
+      <div class="side-note" id="storageNote">ID별로 이 브라우저에 저장돼요.</div>
+    </aside>
+  </section>
+</main>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-card">
+    <h2>내 TO-DO 열기</h2>
+    <p>식별번호로 내 플래너를 구분해요.<br>지수는 <strong>0307</strong>을 입력하면 돼요.</p>
+    <form class="code-form" id="codeForm"><input class="code-input" id="codeInput" inputmode="numeric" autocomplete="off" maxlength="12" value="0307"><button class="code-go">열기</button></form>
+    <div class="login-foot">※ 4자리 식별번호는 강한 비밀번호가 아니라 개인 플래너 구분용이에요.</div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script src="app.js"></script>
+</body>
+</html>
