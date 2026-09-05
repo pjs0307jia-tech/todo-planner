@@ -9,9 +9,9 @@
   "theme_color": "#fffafd",
   "icons": [
     {
-      "src": "/todo-planner/todo-home-icon-v66.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/todo-planner/todo-logo-final-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
       "purpose": "any"
     }
   ]
