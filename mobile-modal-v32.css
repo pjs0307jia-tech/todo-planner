@@ -1,0 +1,46 @@
+/* Mobile-only centered date manager modal. Desktop is untouched. */
+@media (max-width:800px){
+  #selectedDeadlines.day-manager-panel,
+  body[data-mode="work"] #selectedDeadlines.day-manager-panel{
+    position:fixed!important;
+    z-index:1300!important;
+    left:50%!important;
+    top:50%!important;
+    right:auto!important;
+    bottom:auto!important;
+    transform:translate(-50%,-50%)!important;
+    width:min(calc(100vw - 28px),360px)!important;
+    max-width:calc(100vw - 28px)!important;
+    min-width:0!important;
+    min-height:0!important;
+    max-height:72vh!important;
+    margin:0!important;
+    padding:16px!important;
+    border-radius:24px!important;
+    background:#fff!important;
+    border:1px solid rgba(235,226,231,.95)!important;
+    box-shadow:0 0 0 100vmax rgba(48,39,44,.34),0 24px 70px rgba(67,50,59,.24)!important;
+    overflow:hidden!important;
+  }
+  #selectedDeadlines.day-manager-panel[hidden]{display:none!important}
+  #selectedDeadlines.day-manager-panel .day-manager-scroll{
+    overflow-y:auto!important;
+    -webkit-overflow-scrolling:touch;
+    max-height:calc(72vh - 92px)!important;
+  }
+  #selectedDeadlines.day-manager-panel .day-manager-head{padding-bottom:12px!important}
+  #selectedDeadlines.day-manager-panel .day-manager-close{
+    width:34px!important;height:34px!important;font-size:21px!important;
+  }
+}
+@media (max-width:390px){
+  #selectedDeadlines.day-manager-panel,
+  body[data-mode="work"] #selectedDeadlines.day-manager-panel{
+    width:calc(100vw - 20px)!important;
+    max-width:calc(100vw - 20px)!important;
+    max-height:70vh!important;
+    padding:14px!important;
+    border-radius:22px!important;
+  }
+  #selectedDeadlines.day-manager-panel .day-manager-scroll{max-height:calc(70vh - 88px)!important}
+}
