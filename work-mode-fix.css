@@ -1,0 +1,27 @@
+/* Final work-mode layout override. Loaded last to beat legacy hide rules and cached styles. */
+@media (min-width:1181px){
+  body[data-mode="work"] .wrap{width:min(1280px,calc(100% - 34px))!important}
+  body[data-mode="work"] .layout{grid-template-columns:210px minmax(0,660px) minmax(320px,1fr)!important;gap:18px!important}
+  body[data-mode="work"] .deadline-panel{display:flex!important;grid-column:auto!important;grid-row:auto!important}
+  body[data-mode="work"] .calendar-card{grid-column:auto!important}
+  body[data-mode="work"] .side{grid-column:auto!important}
+}
+@media (min-width:801px) and (max-width:1180px){
+  body[data-mode="work"] .wrap{width:min(1050px,calc(100% - 24px))!important}
+  body[data-mode="work"] .layout{grid-template-columns:205px minmax(0,1fr)!important;gap:17px!important}
+  body[data-mode="work"] .deadline-panel{display:flex!important;grid-column:1!important;grid-row:1 / span 2!important}
+  body[data-mode="work"] .calendar-card{grid-column:2!important;grid-row:1!important}
+  body[data-mode="work"] .side{grid-column:2!important;grid-row:2!important}
+}
+@media (max-width:800px){
+  body[data-mode="work"] .deadline-panel{display:flex!important;position:static!important;height:auto!important;min-height:0!important;max-height:none!important}
+}
+body[data-mode="work"] #selectedDeadlines.day-manager-panel:not([hidden]){display:flex!important}
+body[data-mode="work"] .deadline-panel{border-color:#e4edf7!important}
+body[data-mode="work"] .deadline-add-toggle{background:#eaf3fd!important;color:#4f87c5!important}
+body[data-mode="work"] .deadline-form{background:#f7fbff!important;border-color:#e2edf8!important}
+body[data-mode="work"] .deadline-save{background:#6f9fd6!important}
+body[data-mode="work"] .deadline-card{border-color:#e5edf5!important}
+body[data-mode="work"] .deadline-dday{background:#edf5ff!important;color:#4d86c6!important}
+body[data-mode="work"] #selectedDeadlines.day-manager-panel{border-color:#e5edf5!important}
+body[data-mode="work"] .day-manager-kicker{color:#5f94cf!important}
