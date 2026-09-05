@@ -1,0 +1,173 @@
+/* Mobile-only UX polish. Desktop (801px+) intentionally untouched. */
+@media (max-width:800px){
+  html,body{width:100%;max-width:100%;overflow-x:hidden}
+  body{padding:0;margin:0;-webkit-text-size-adjust:100%}
+  button,a,input,select{touch-action:manipulation}
+
+  .wrap,
+  body[data-mode="job"] .wrap,
+  body[data-mode="work"] .wrap{
+    width:100%!important;
+    max-width:100%!important;
+    margin:0!important;
+    padding:calc(18px + env(safe-area-inset-top)) 12px calc(30px + env(safe-area-inset-bottom))!important;
+  }
+
+  .hero{
+    width:100%;
+    margin:0 0 14px!important;
+    padding:0 2px;
+    display:flex;
+    flex-wrap:nowrap!important;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+  }
+  .hero-left{min-width:0;gap:10px}
+  .hero h1{font-size:27px!important;white-space:nowrap}
+  .mode-switch{flex:none}
+  .mode-btn{font-size:12px;padding:8px 12px}
+  .hero-right{margin-left:auto;flex:none}
+  .hero-right .id-pill{display:none!important}
+  .today-btn{font-size:12px;padding:9px 12px}
+
+  .layout,
+  body[data-mode="job"] .layout,
+  body[data-mode="work"] .layout{
+    display:flex!important;
+    flex-direction:column!important;
+    width:100%!important;
+    max-width:100%!important;
+    gap:12px!important;
+    overflow:visible!important;
+  }
+
+  .calendar-card,
+  .deadline-panel,
+  .side{
+    width:100%!important;
+    max-width:100%!important;
+    min-width:0!important;
+    margin:0!important;
+    position:static!important;
+    height:auto!important;
+    min-height:0!important;
+    max-height:none!important;
+    grid-column:auto!important;
+    grid-row:auto!important;
+    overflow:hidden;
+    border-radius:22px!important;
+  }
+
+  .calendar-card{order:1;padding:14px 10px 12px!important}
+  .deadline-panel{order:2;padding:14px!important;display:flex!important;flex-direction:column}
+  .side{order:3;padding:14px!important}
+
+  .cal-head{margin-bottom:8px!important}
+  .month-wrap{gap:6px;min-width:0}
+  .month{font-size:20px!important;white-space:nowrap}
+  .month-stats{font-size:10px;white-space:nowrap}
+  .nav{gap:6px}
+  .icon-btn{width:36px;height:36px;font-size:18px}
+
+  .week{font-size:10px;margin-bottom:2px}
+  .week div{padding:5px 0}
+  .grid{width:100%;gap:2px}
+  .day{min-width:0;min-height:68px!important;border-radius:12px;padding:4px 2px 3px!important}
+  .day .topline{height:23px}
+  .num{width:23px;height:23px;font-size:11px}
+  .event-stack{gap:2px;margin-top:1px}
+  .event-chip{font-size:7px!important;line-height:1.25;padding:2px 3px!important;border-radius:5px}
+  .event-more{font-size:6.7px;padding-left:2px}
+  .mood-mini{left:2px;right:2px;bottom:2px;font-size:6.5px}
+
+  .events-panel{margin-top:12px!important;padding-top:12px!important}
+  .events-title{align-items:flex-start;gap:8px;margin-bottom:8px}
+  .events-title strong{font-size:12px}
+  .events-title span{font-size:9px;text-align:right;line-height:1.35}
+  .event-form{display:grid!important;grid-template-columns:1fr auto!important;gap:8px!important}
+  .palette{grid-column:1/-1;gap:6px;overflow-x:auto;padding:2px 1px 3px;scrollbar-width:none}
+  .palette::-webkit-scrollbar{display:none}
+  .color-btn{width:21px!important;height:21px!important;flex:none}
+  .event-input{width:100%;font-size:16px!important;padding:11px 12px!important;border-radius:13px}
+  .add-small{min-width:92px;font-size:12px;padding:11px 13px;border-radius:12px}
+  .event-list{gap:6px;margin-top:9px}
+  .event-item{font-size:10px;padding:6px 8px}
+
+  .deadline-panel .deadline-head{gap:8px}
+  .deadline-panel .deadline-head strong{font-size:14px}
+  .deadline-panel .deadline-head span{font-size:9.5px}
+  .deadline-add-toggle{font-size:11px;padding:8px 10px}
+  .deadline-form{padding:10px;gap:8px}
+  .deadline-input{font-size:16px!important;padding:10px 11px}
+  .deadline-time-row{grid-template-columns:minmax(0,1fr) 110px;gap:7px}
+  .deadline-scroll{max-height:330px;overflow-y:auto!important;min-height:0}
+  .deadline-list{gap:8px}
+  .deadline-card{padding:11px;border-radius:14px}
+  .deadline-company{font-size:12px}
+  .deadline-dday{font-size:9.5px}
+  .deadline-meta{font-size:9.5px}
+  .deadline-foot{font-size:9px;line-height:1.5}
+
+  .side-label{font-size:11px}
+  .side-date{font-size:22px}
+  .progress{grid-template-columns:50px 1fr;gap:11px;padding:10px 11px}
+  .ring{width:50px;height:50px}
+  .ring:after{width:38px;height:38px}
+  .todo-form{gap:8px}
+  .todo-input{font-size:16px!important;padding:11px 12px}
+  .todo-add{font-size:12px;padding:0 15px;min-width:58px}
+  .mood-box{padding:11px 12px}
+  .rate-btn{width:30px;height:30px;font-size:24px}
+  .todo-list{max-height:48vh;overflow-y:auto;padding-right:2px;overscroll-behavior:contain}
+  .todo-item{padding:11px;gap:9px}
+  .todo-text{font-size:12px}
+
+  /* Mobile day manager = bottom sheet, never off-screen to the left/right. */
+  #selectedDeadlines.day-manager-panel,
+  body[data-mode="work"] #selectedDeadlines.day-manager-panel{
+    position:fixed!important;
+    left:12px!important;
+    right:12px!important;
+    top:auto!important;
+    bottom:calc(12px + env(safe-area-inset-bottom))!important;
+    width:auto!important;
+    min-width:0!important;
+    min-height:0!important;
+    max-height:72vh!important;
+    margin:0!important;
+    padding:16px!important;
+    border-radius:22px!important;
+    z-index:999!important;
+    box-shadow:0 22px 70px rgba(61,49,55,.22)!important;
+    overflow:hidden!important;
+  }
+  #selectedDeadlines.day-manager-panel[hidden]{display:none!important}
+  .day-manager-head{padding-bottom:12px}
+  .day-manager-date{font-size:19px}
+  .day-manager-summary{font-size:10px}
+  .day-manager-close{width:32px;height:32px;font-size:20px}
+  .day-manager-scroll{padding-top:12px;overflow-y:auto;-webkit-overflow-scrolling:touch}
+  .day-manager-section-head strong{font-size:12px}
+  .day-manager-section-head span{font-size:10px}
+  .dm-row{padding:11px;border-radius:14px}
+  .dm-row-title{font-size:11.5px}
+  .dm-row-meta{font-size:9.5px}
+  .dm-tools button,.dm-tools a{width:28px;height:28px;font-size:13px}
+  .dm-edit-input{font-size:16px!important;padding:10px}
+  .dm-edit-row{grid-template-columns:1fr 110px}
+
+  .login-overlay{padding:16px}
+  .login-card{border-radius:22px;padding:20px}
+  .code-input{font-size:16px}
+}
+
+@media (max-width:390px){
+  .wrap,body[data-mode="job"] .wrap,body[data-mode="work"] .wrap{padding-left:8px!important;padding-right:8px!important}
+  .hero h1{font-size:25px!important}
+  .mode-btn{padding:7px 10px}
+  .today-btn{padding:8px 10px}
+  .calendar-card{padding-left:8px!important;padding-right:8px!important}
+  .day{min-height:64px!important}
+  .event-chip{font-size:6.5px!important}
+}
