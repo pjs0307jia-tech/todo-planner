@@ -1,0 +1,16 @@
+{
+  "name": "TO-DO!",
+  "short_name": "TO-DO!",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#fffafd",
+  "theme_color": "#fffafd",
+  "icons": [
+    {
+      "src": "https://empbjojdpmeaottpesdt.supabase.co/functions/v1/todo-touch-icon?v=29",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
