@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fffafd">
 <title>TO-DO!</title>
-<link rel="icon" type="image/svg+xml" href="./heart-favicon-v5.svg">
-<link rel="alternate icon" type="image/png" href="./favicon.png?v=5">
-<link rel="shortcut icon" href="./heart-favicon-v5.svg">
-<link rel="apple-touch-icon" href="./favicon.png?v=5">
-<link rel="stylesheet" href="style.css">
-<link rel="stylesheet" href="edit-override.css">
-<link rel="stylesheet" href="deadline-feature.css">
-<link rel="stylesheet" href="size-override.css">
-<link rel="stylesheet" href="day-manager.css">
+<link rel="icon" type="image/svg+xml" href="./heart-favicon-v5.svg?v=27">
+<link rel="alternate icon" type="image/png" href="./favicon.png?v=27">
+<link rel="shortcut icon" href="./heart-favicon-v5.svg?v=27">
+<link rel="apple-touch-icon" href="./favicon.png?v=27">
+<link rel="stylesheet" href="style.css?v=27">
+<link rel="stylesheet" href="edit-override.css?v=27">
+<link rel="stylesheet" href="deadline-feature.css?v=27">
+<link rel="stylesheet" href="size-override.css?v=27">
+<link rel="stylesheet" href="day-manager.css?v=27">
+<link rel="stylesheet" href="work-mode-fix.css?v=27">
 <style>
 @media (min-width:801px){
   .side,.deadline-panel{display:flex;flex-direction:column;overflow:hidden}
@@ -74,10 +75,7 @@
       <div class="week"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
       <div class="grid" id="grid"></div>
 
-      <section class="selected-deadlines" id="selectedDeadlines" hidden>
-        <div class="selected-deadline-title"><strong>이 날의 원서 마감</strong><span id="selectedDeadlineCount"></span></div>
-        <div class="selected-deadline-list" id="selectedDeadlineList"></div>
-      </section>
+      <section class="selected-deadlines" id="selectedDeadlines" hidden></section>
 
       <section class="events-panel">
         <div class="events-title"><strong>캘린더 일정</strong><span>취준 · 업무 모드에서 함께 보여요</span></div>
@@ -118,11 +116,11 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
-<script src="app.js"></script>
-<script src="palette-override.js"></script>
-<script src="edit-override.js"></script>
-<script src="deadline-feature.js"></script>
-<script src="day-manager.js"></script>
+<script src="app.js?v=27"></script>
+<script src="palette-override.js?v=27"></script>
+<script src="edit-override.js?v=27"></script>
+<script src="deadline-feature.js?v=27"></script>
+<script src="day-manager.js?v=27"></script>
 <script>
 (function(){
   const calendar=document.querySelector('.calendar-card');
@@ -146,7 +144,7 @@
   syncPanelHeights();
   window.addEventListener('load',syncPanelHeights);
   window.addEventListener('resize',syncPanelHeights);
-  document.querySelectorAll('.mode-btn,#prev,#next,#todayBtn').forEach(btn=>btn.addEventListener('click',()=>setTimeout(syncPanelHeights,0)));
+  document.querySelectorAll('.mode-btn,#prev,#next,#todayBtn').forEach(btn=>btn.addEventListener('click',()=>setTimeout(syncPanelHeights,20)));
   if('ResizeObserver' in window)new ResizeObserver(syncPanelHeights).observe(calendar);
 })();
 </script>
