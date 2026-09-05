@@ -7,7 +7,7 @@
   "theme_color": "#fffafd",
   "icons": [
     {
-      "src": "https://empbjojdpmeaottpesdt.supabase.co/functions/v1/todo-touch-icon?v=29",
+      "src": "https://empbjojdpmeaottpesdt.supabase.co/functions/v1/todo-touch-icon?v=31",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
