@@ -61,5 +61,58 @@ renderCalendar=function(){_renderCalendarPalette();setReadableEventText()};
 const _renderEventsPalette=renderEvents;
 renderEvents=function(){_renderEventsPalette();setReadableEventText()};
 
+function forceHeartFavicon(){
+  const href='favicon-heart.svg?v=20260905-2';
+  document.querySelectorAll('link[rel~="icon"],link[rel="shortcut icon"]').forEach(el=>el.remove());
+  const icon=document.createElement('link');
+  icon.rel='icon';
+  icon.type='image/svg+xml';
+  icon.href=href;
+  document.head.appendChild(icon);
+  const shortcut=document.createElement('link');
+  shortcut.rel='shortcut icon';
+  shortcut.href=href;
+  document.head.appendChild(shortcut);
+}
+
+function lockTodoPanelToCalendar(){
+  const calendar=document.querySelector('.calendar-card');
+  const side=document.querySelector('.side');
+  const list=document.querySelector('.side .todo-list');
+  if(!calendar||!side||!list)return;
+  if(window.innerWidth<=800){
+    side.style.height='';
+    side.style.maxHeight='';
+    list.style.overflowY='';
+    return;
+  }
+  const h=Math.round(calendar.getBoundingClientRect().height);
+  side.style.height=h+'px';
+  side.style.maxHeight=h+'px';
+  side.style.minHeight='0';
+  side.style.display='flex';
+  side.style.flexDirection='column';
+  side.style.overflow='hidden';
+  list.style.flex='1 1 auto';
+  list.style.minHeight='0';
+  list.style.overflowY='auto';
+  list.style.overscrollBehavior='contain';
+}
+
+function bootUiFixes(){
+  forceHeartFavicon();
+  lockTodoPanelToCalendar();
+  window.addEventListener('resize',lockTodoPanelToCalendar);
+  const calendar=document.querySelector('.calendar-card');
+  if(calendar&&'ResizeObserver' in window){
+    new ResizeObserver(lockTodoPanelToCalendar).observe(calendar);
+  }
+  const list=document.querySelector('.side .todo-list');
+  if(list&&'MutationObserver' in window){
+    new MutationObserver(lockTodoPanelToCalendar).observe(list,{childList:true,subtree:true});
+  }
+}
+
 activeColor=normalizeAltColor(activeColor);
 renderAll();
+setTimeout(bootUiFixes,0);
