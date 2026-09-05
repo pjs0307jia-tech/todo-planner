@@ -48,6 +48,48 @@
 .dm-edit-input:focus{border-color:#eaa3bb;box-shadow:0 0 0 2px rgba(234,143,176,.12)}
 .dm-edit-actions{display:flex;justify-content:flex-end;gap:5px}.dm-edit-actions button{border:0;border-radius:8px;padding:6px 9px;font-size:8.5px;font-weight:750}.dm-edit-cancel{background:#f4f1f2;color:#81777c}.dm-edit-save{background:#eb8fad;color:#fff}
 .dm-color-row{display:flex;align-items:center;gap:5px}.dm-color-btn{width:15px;height:15px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #e7dde1}.dm-color-btn.on{box-shadow:0 0 0 2px #e46f98}
+
+/* Work mode: same planner layout, blue meeting / due dashboard. */
+body[data-mode="work"] .wrap{width:min(1280px,calc(100% - 34px))}
+body[data-mode="work"] .layout{grid-template-columns:210px minmax(0,660px) minmax(320px,1fr);gap:18px}
+body[data-mode="work"] .deadline-panel{display:flex!important;border-color:#e4edf7}
+body[data-mode="work"] #selectedDeadlines.day-manager-panel:not([hidden]){display:flex!important}
+body[data-mode="work"] .deadline-panel .deadline-head strong{color:#46515f}
+body[data-mode="work"] .deadline-add-toggle{background:#eaf3fd;color:#4f87c5}
+body[data-mode="work"] .deadline-form{background:#f7fbff;border-color:#e2edf8}
+body[data-mode="work"] .deadline-input:focus{border-color:#8fb7e4;box-shadow:0 0 0 2px rgba(104,157,218,.12)}
+body[data-mode="work"] .deadline-save{background:#6f9fd6}
+body[data-mode="work"] .deadline-card{border-color:#e5edf5}
+body[data-mode="work"] .deadline-card:hover{border-color:#b9d1eb;box-shadow:0 6px 16px rgba(84,133,187,.08)}
+body[data-mode="work"] .deadline-tools button:hover{color:#5c91cb}
+body[data-mode="work"] .deadline-scroll{scrollbar-color:#dbe7f4 transparent}
+body[data-mode="work"] .deadline-scroll::-webkit-scrollbar-thumb{background:#dbe7f4}
+.work-type-select{appearance:auto}
+.work-type-badge,.dm-work-badge{display:inline-flex;align-items:center;border-radius:999px;padding:3px 6px;font-size:7.5px;font-weight:850;letter-spacing:.03em;margin-bottom:5px}
+.work-type-badge.meeting,.dm-work-badge.meeting{background:#e7f1fc;color:#4e85c3}
+.work-type-badge.due,.dm-work-badge.due{background:#dce9f8;color:#356fae}
+.work-dday{background:#edf5ff!important;color:#4d86c6!important}
+.work-calendar-chip{background:#e6f1fc!important;color:#497fb9!important;border-left:2px solid #74a5d9;font-weight:800!important}
+.work-calendar-chip.due{background:#dceaf9!important;color:#356fae!important;border-left-color:#5f93cc}
+.work-calendar-more{color:#6293c8!important}
+.dm-work-badge{margin:1px 0 0;flex:none}
+body[data-mode="work"] #selectedDeadlines.day-manager-panel{border-color:#e5edf5!important;box-shadow:0 18px 50px rgba(61,91,122,.15)!important}
+body[data-mode="work"] .day-manager-kicker{color:#5f94cf}
+body[data-mode="work"] .day-manager-close:hover{background:#eef5fc;color:#5d91ca}
+body[data-mode="work"] .dm-tools button:hover,body[data-mode="work"] .dm-tools a:hover{background:#eef5fc;color:#5d91ca}
+body[data-mode="work"] .dm-edit-input:focus{border-color:#8db5e1;box-shadow:0 0 0 2px rgba(104,157,218,.12)}
+body[data-mode="work"] .dm-edit-save{background:#6f9fd6}
+body[data-mode="work"] .dm-color-btn.on{box-shadow:0 0 0 2px #6e9fd6}
+
+@media (min-width:801px) and (max-width:1180px){
+  body[data-mode="work"] .wrap{width:min(1050px,calc(100% - 24px))}
+  body[data-mode="work"] .layout{grid-template-columns:205px minmax(0,1fr);gap:17px}
+  body[data-mode="work"] .side{grid-column:2}
+  body[data-mode="work"] .deadline-panel{grid-row:1 / span 2}
+}
 @media(max-width:800px){
   #selectedDeadlines.day-manager-panel{width:min(88vw,320px);max-height:60vh;min-height:300px;border-radius:18px!important}
+  body[data-mode="work"] .wrap{width:min(620px,calc(100% - 20px))}
+  body[data-mode="work"] .layout{grid-template-columns:1fr}
+  body[data-mode="work"] .deadline-panel{position:static;grid-row:auto;min-height:0!important;max-height:none!important;height:auto!important}
 }
