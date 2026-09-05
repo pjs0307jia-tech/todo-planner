@@ -1,3 +1,121 @@
+(function showStandaloneSplash(){
+  const standalone=(window.navigator.standalone===true)||window.matchMedia('(display-mode: standalone)').matches;
+  if(!standalone||document.getElementById('todoAppSplash'))return;
+
+  const style=document.createElement('style');
+  style.id='todoSplashStyle';
+  style.textContent=`
+    #todoAppSplash{
+      position:fixed;inset:0;z-index:2147483647;
+      display:flex;align-items:center;justify-content:center;
+      padding:env(safe-area-inset-top) 24px env(safe-area-inset-bottom);
+      background:#fffafd;
+      opacity:1;visibility:visible;
+      transition:opacity .42s ease,visibility .42s ease;
+      -webkit-user-select:none;user-select:none;
+      touch-action:none;
+    }
+    #todoAppSplash.splash-out{opacity:0;visibility:hidden;pointer-events:none}
+    .todo-splash-inner{
+      display:flex;flex-direction:column;align-items:center;justify-content:center;
+      transform:translateY(-2vh);
+    }
+    .todo-splash-logo{
+      width:min(58vw,230px);height:auto;display:block;
+      filter:drop-shadow(0 10px 24px rgba(224,112,148,.08));
+      animation:todoSplashFloat .95s ease-in-out infinite alternate;
+    }
+    .todo-splash-loading{
+      margin-top:22px;color:#d87998;font-size:13px;font-weight:700;
+      letter-spacing:.02em;opacity:.8;
+      animation:todoSplashBreath .9s ease-in-out infinite alternate;
+    }
+    .todo-splash-dots{display:inline-block;min-width:18px;text-align:left}
+    .todo-splash-dots::after{content:'~';animation:todoSplashDots 1.05s steps(1,end) infinite}
+    @keyframes todoSplashFloat{from{transform:translateY(0)}to{transform:translateY(-4px)}}
+    @keyframes todoSplashBreath{from{opacity:.48}to{opacity:.95}}
+    @keyframes todoSplashDots{0%{content:'~'}33%{content:'~~'}66%{content:'~~~'}}
+    @media (prefers-reduced-motion:reduce){
+      .todo-splash-logo,.todo-splash-loading{animation:none!important}
+    }
+  `;
+  document.head.appendChild(style);
+
+  const splash=document.createElement('div');
+  splash.id='todoAppSplash';
+  splash.setAttribute('role','status');
+  splash.setAttribute('aria-label','TO-DO 로딩 중');
+  splash.innerHTML=`
+    <div class="todo-splash-inner">
+      <svg class="todo-splash-logo" viewBox="0 0 320 320" aria-hidden="true">
+        <defs>
+          <mask id="todoLogoMask" maskUnits="userSpaceOnUse" x="0" y="0" width="320" height="320">
+            <rect width="320" height="320" fill="black"/>
+            <!-- T -->
+            <path fill="white" d="M34 42Q34 31 45 31H126Q137 31 137 42V55Q137 66 126 66H103V137Q103 150 90 150H80Q67 150 67 137V66H45Q34 66 34 55Z"/>
+            <!-- heart O -->
+            <path d="M226 139C214 126 158 92 158 57C158 35 175 23 193 23C207 23 219 30 226 42C234 30 246 23 260 23C279 23 296 36 296 57C296 92 239 126 226 139Z" fill="none" stroke="white" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+            <!-- D -->
+            <path fill="white" fill-rule="evenodd" d="M35 171H80C117 171 139 194 139 229C139 264 117 287 80 287H35Q27 287 27 279V179Q27 171 35 171ZM65 197V261H79C98 261 110 249 110 229C110 209 98 197 79 197Z"/>
+            <!-- O -->
+            <circle cx="203" cy="229" r="55" fill="none" stroke="white" stroke-width="28"/>
+            <!-- ! -->
+            <rect x="277" y="171" width="25" height="78" rx="12.5" fill="white"/>
+            <circle cx="289.5" cy="275" r="13" fill="white"/>
+          </mask>
+          <linearGradient id="todoWaterPink" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f59aba"/>
+            <stop offset="1" stop-color="#e27da0"/>
+          </linearGradient>
+        </defs>
+
+        <!-- soft empty outline -->
+        <g fill="none" stroke="#eda0b8" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round" opacity=".92">
+          <path d="M34 42Q34 31 45 31H126Q137 31 137 42V55Q137 66 126 66H103V137Q103 150 90 150H80Q67 150 67 137V66H45Q34 66 34 55Z"/>
+          <path d="M226 139C214 126 158 92 158 57C158 35 175 23 193 23C207 23 219 30 226 42C234 30 246 23 260 23C279 23 296 36 296 57C296 92 239 126 226 139Z"/>
+          <path fill-rule="evenodd" d="M35 171H80C117 171 139 194 139 229C139 264 117 287 80 287H35Q27 287 27 279V179Q27 171 35 171ZM65 197V261H79C98 261 110 249 110 229C110 209 98 197 79 197Z"/>
+          <circle cx="203" cy="229" r="55"/>
+          <circle cx="203" cy="229" r="41"/>
+          <rect x="277" y="171" width="25" height="78" rx="12.5"/>
+          <circle cx="289.5" cy="275" r="13"/>
+        </g>
+
+        <!-- rising wavy pink fill, clipped to logo -->
+        <g mask="url(#todoLogoMask)">
+          <g>
+            <animateTransform attributeName="transform" type="translate" from="0 285" to="0 -105" dur="1.75s" begin="0.08s" fill="freeze" calcMode="spline" keySplines=".32 0 .18 1"/>
+            <g>
+              <animateTransform attributeName="transform" type="translate" values="-55 0;10 0;-55 0" dur=".72s" repeatCount="indefinite"/>
+              <path fill="url(#todoWaterPink)" d="M-100 90C-55 68-18 112 28 90S110 68 156 90S238 112 284 90S366 68 412 90V480H-100Z"/>
+            </g>
+          </g>
+        </g>
+      </svg>
+      <div class="todo-splash-loading">로딩중<span class="todo-splash-dots"></span></div>
+    </div>`;
+  document.body.appendChild(splash);
+
+  let finished=false;
+  const finish=()=>{
+    if(finished)return;
+    finished=true;
+    splash.classList.add('splash-out');
+    setTimeout(()=>{
+      splash.remove();
+      style.remove();
+    },460);
+  };
+
+  const started=performance.now();
+  const finishAfterMinimum=()=>{
+    const wait=Math.max(0,1950-(performance.now()-started));
+    setTimeout(finish,wait);
+  };
+  if(document.readyState==='complete')finishAfterMinimum();
+  else window.addEventListener('load',finishAfterMinimum,{once:true});
+  setTimeout(finish,3300);
+})();
+
 const ALT_PALETTES={
   job:[
     {id:'1',hex:'#fde8ef',label:'연분홍'},
