@@ -1,0 +1,8 @@
+.editable-text{cursor:text;border-radius:6px;transition:background .12s,box-shadow .12s}
+.todo-text.editable-text:hover{background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent-soft)}
+.event-item .editable-text{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.event-item .editable-text:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+.inline-edit-input{min-width:0;flex:1;width:100%;border:1px solid var(--accent);outline:none;background:#fff;color:var(--text);border-radius:8px;padding:5px 7px;font-size:inherit;line-height:1.35;box-shadow:0 0 0 3px var(--accent-shadow)}
+.event-item .inline-edit-input{padding:2px 5px;font-size:9.5px;min-width:90px}
+.todo-item .inline-edit-input{font-size:11px}
+@media(max-width:540px){.editable-text{cursor:pointer}.inline-edit-input{font-size:16px!important}}
