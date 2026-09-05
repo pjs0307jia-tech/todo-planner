@@ -3,11 +3,11 @@
   "short_name": "TO-DO!",
   "start_url": "./",
   "display": "standalone",
-  "background_color": "#fffafd",
+  "background_color": "#ffffff",
   "theme_color": "#fffafd",
   "icons": [
     {
-      "src": "https://empbjojdpmeaottpesdt.supabase.co/functions/v1/todo-touch-icon?v=31",
+      "src": "./app-icon-v33.png?v=33",
       "sizes": "180x180",
       "type": "image/png",
       "purpose": "any"
