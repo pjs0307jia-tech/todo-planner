@@ -1,6 +1,7 @@
 let applicationDeadlines=[];
 let editingDeadlineId=null;
 let deadlineBooted=false;
+let selectedDeadlinePopupOpen=false;
 
 function deadlineLocalKey(){return `todoPlanner_deadlines_${userCode||'guest'}`}
 function saveDeadlineLocal(){try{localStorage.setItem(deadlineLocalKey(),JSON.stringify(applicationDeadlines))}catch{}}
@@ -98,30 +99,72 @@ function renderCalendarDeadlines(){
   });
 }
 
-function renderSelectedDeadlines(){
-  const section=$('selectedDeadlines'),list=$('selectedDeadlineList'),count=$('selectedDeadlineCount');if(!section||!list)return;
-  if(activeMode!=='job'){section.hidden=true;return}
+function closeSelectedDeadlinePopup(){
+  selectedDeadlinePopupOpen=false;
+  const section=$('selectedDeadlines');
+  if(section)section.hidden=true;
+}
+
+function renderSelectedDeadlines(forceOpen=false){
+  const section=$('selectedDeadlines');if(!section)return;
+  if(activeMode!=='job'){closeSelectedDeadlinePopup();return}
   const items=deadlinesForDate(dateKey(selected));
-  if(!items.length){section.hidden=true;return}
-  section.hidden=false;count.textContent=`${items.length}건`;
-  list.innerHTML='';items.forEach(item=>{
+  if(!items.length){closeSelectedDeadlinePopup();return}
+  if(forceOpen)selectedDeadlinePopupOpen=true;
+  if(!selectedDeadlinePopupOpen){section.hidden=true;return}
+
+  section.innerHTML='';
+  section.hidden=false;
+  section.setAttribute('role','dialog');
+  section.setAttribute('aria-modal','true');
+  section.setAttribute('aria-label','이 날의 원서 마감');
+
+  const title=document.createElement('div');title.className='selected-deadline-title';
+  const titleLeft=document.createElement('div');titleLeft.className='selected-deadline-title-left';
+  const strong=document.createElement('strong');strong.textContent='이 날의 원서 마감';
+  const count=document.createElement('span');count.textContent=`${items.length}건`;
+  titleLeft.append(strong,count);
+  const close=document.createElement('button');close.type='button';close.className='selected-deadline-close';close.setAttribute('aria-label','닫기');close.textContent='×';close.onclick=e=>{e.stopPropagation();closeSelectedDeadlinePopup()};
+  title.append(titleLeft,close);
+
+  const list=document.createElement('div');list.className='selected-deadline-list';
+  items.forEach(item=>{
     const el=item.url?document.createElement('a'):document.createElement('span');
     el.className='selected-deadline-item'+(item.url?'':' no-link');
     if(item.url){el.href=item.url;el.target='_blank';el.rel='noopener noreferrer'}
-    el.innerHTML=`<span>${item.company} 제출${item.url?' ↗':''}</span><small>${item.time||'23:59'}</small>`;
-    list.append(el);
+    const name=document.createElement('span');name.textContent=`${item.company} 제출${item.url?' ↗':''}`;
+    const time=document.createElement('small');time.textContent=item.time||'23:59';
+    el.append(name,time);list.append(el);
   });
+  section.append(title,list);
 }
+
+function openSelectedDeadlinePopup(){renderSelectedDeadlines(true)}
 
 function renderDeadlineFeature(){
   const panel=$('deadlinePanel');if(panel)panel.style.display=activeMode==='job'?'flex':'none';
-  if(activeMode==='job'){renderDeadlineBoard();renderSelectedDeadlines()}
+  if(activeMode==='job'){renderDeadlineBoard();renderSelectedDeadlines(false)}
 }
 
 function setupDeadlineEvents(){
   $('deadlineAddToggle')?.addEventListener('click',()=>openDeadlineForm());
   $('deadlineCancelBtn')?.addEventListener('click',closeDeadlineForm);
   $('deadlineForm')?.addEventListener('submit',e=>{e.preventDefault();submitDeadline()});
+  $('grid')?.addEventListener('click',e=>{
+    const day=e.target.closest('.day');if(!day)return;
+    setTimeout(()=>{
+      if(activeMode==='job'&&deadlinesForDate(dateKey(selected)).length)openSelectedDeadlinePopup();
+      else closeSelectedDeadlinePopup();
+    },0);
+  });
+  $('selectedDeadlines')?.addEventListener('click',e=>e.stopPropagation());
+  document.addEventListener('click',e=>{
+    const section=$('selectedDeadlines');
+    if(!selectedDeadlinePopupOpen||!section||section.hidden)return;
+    if(section.contains(e.target)||e.target.closest('#grid .day'))return;
+    closeSelectedDeadlinePopup();
+  });
+  document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSelectedDeadlinePopup()});
 }
 
 const _deadlineQueueSave=queueSave;
@@ -131,7 +174,7 @@ renderCalendar=function(){_deadlineRenderCalendar();renderCalendarDeadlines()};
 const _deadlineRenderAll=renderAll;
 renderAll=function(){_deadlineRenderAll();renderDeadlineFeature()};
 const _deadlineOpenPlanner=openPlanner;
-openPlanner=async function(code){applicationDeadlines=[];await _deadlineOpenPlanner(code);await loadDeadlineData();renderAll()};
+openPlanner=async function(code){applicationDeadlines=[];selectedDeadlinePopupOpen=false;await _deadlineOpenPlanner(code);await loadDeadlineData();renderAll()};
 
 function bootDeadlineFeature(){
   if(deadlineBooted)return;deadlineBooted=true;setupDeadlineEvents();
