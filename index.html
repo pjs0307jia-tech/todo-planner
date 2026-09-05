@@ -5,10 +5,25 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="theme-color" content="#fffafd">
 <title>TO-DO!</title>
+<link rel="icon" type="image/png" sizes="128x128" href="favicon.png?v=3">
+<link rel="shortcut icon" type="image/png" href="favicon.png?v=3">
+<link rel="apple-touch-icon" href="favicon.png?v=3">
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="edit-override.css">
 <link rel="stylesheet" href="deadline-feature.css">
 <link rel="stylesheet" href="size-override.css">
+<style>
+@media (min-width:801px){
+  .side{display:flex;flex-direction:column;overflow:hidden}
+  .side .todo-list{flex:1;min-height:0;overflow-y:auto;padding-right:4px;scrollbar-width:thin;scrollbar-color:#ead8df transparent}
+  .side .todo-list::-webkit-scrollbar{width:6px}
+  .side .todo-list::-webkit-scrollbar-track{background:transparent}
+  .side .todo-list::-webkit-scrollbar-thumb{background:#ead8df;border-radius:999px}
+  body[data-mode="work"] .side .todo-list{scrollbar-color:#dbe7f4 transparent}
+  body[data-mode="work"] .side .todo-list::-webkit-scrollbar-thumb{background:#dbe7f4}
+  .side .side-note{flex:none}
+}
+</style>
 </head>
 <body data-mode="job">
 <main class="wrap">
@@ -104,5 +119,19 @@
 <script src="palette-override.js"></script>
 <script src="edit-override.js"></script>
 <script src="deadline-feature.js"></script>
+<script>
+(function(){
+  const calendar=document.querySelector('.calendar-card');
+  const side=document.querySelector('.side');
+  if(!calendar||!side)return;
+  const syncSideHeight=()=>{
+    if(window.innerWidth<=800){side.style.height='';return}
+    requestAnimationFrame(()=>{side.style.height=calendar.offsetHeight+'px'});
+  };
+  syncSideHeight();
+  window.addEventListener('resize',syncSideHeight);
+  if('ResizeObserver' in window){new ResizeObserver(syncSideHeight).observe(calendar)}
+})();
+</script>
 </body>
 </html>
