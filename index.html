@@ -7,6 +7,7 @@
 <title>TO-DO!</title>
 <link rel="stylesheet" href="style.css">
 <link rel="stylesheet" href="edit-override.css">
+<link rel="stylesheet" href="deadline-feature.css">
 </head>
 <body data-mode="job">
 <main class="wrap">
@@ -25,6 +26,27 @@
   </header>
 
   <section class="layout">
+    <aside class="card deadline-panel" id="deadlinePanel">
+      <div class="deadline-head">
+        <div><strong>원서 마감</strong><span>D-day · 마감시간 · 노션</span></div>
+        <button class="deadline-add-toggle" id="deadlineAddToggle" type="button">+ 원서</button>
+      </div>
+      <form class="deadline-form" id="deadlineForm" hidden>
+        <input class="deadline-input" id="deadlineCompany" maxlength="36" autocomplete="off" placeholder="기업명 / 공고명" required>
+        <div class="deadline-time-row">
+          <input class="deadline-input" id="deadlineDate" type="date" required>
+          <input class="deadline-input" id="deadlineTime" type="time" value="18:00" required>
+        </div>
+        <input class="deadline-input" id="deadlineUrl" maxlength="300" autocomplete="off" placeholder="노션 URL (선택)">
+        <div class="deadline-form-actions">
+          <button class="deadline-cancel" id="deadlineCancelBtn" type="button">취소</button>
+          <button class="deadline-save" id="deadlineSaveBtn" type="submit">추가</button>
+        </div>
+      </form>
+      <div class="deadline-scroll"><div class="deadline-list" id="deadlineList"></div></div>
+      <div class="deadline-foot">마감이 가까운 순서로 자동 정렬돼요.<br>↗가 있는 원서는 노션으로 바로 이동할 수 있어요.</div>
+    </aside>
+
     <div class="card calendar-card">
       <div class="cal-head">
         <div class="month-wrap"><strong class="month" id="monthTitle"></strong><span class="month-stats" id="monthStats"></span></div>
@@ -32,6 +54,11 @@
       </div>
       <div class="week"><div>일</div><div>월</div><div>화</div><div>수</div><div>목</div><div>금</div><div>토</div></div>
       <div class="grid" id="grid"></div>
+
+      <section class="selected-deadlines" id="selectedDeadlines" hidden>
+        <div class="selected-deadline-title"><strong>이 날의 원서 마감</strong><span id="selectedDeadlineCount"></span></div>
+        <div class="selected-deadline-list" id="selectedDeadlineList"></div>
+      </section>
 
       <section class="events-panel">
         <div class="events-title"><strong>캘린더 일정</strong><span>취준 · 업무 모드에서 함께 보여요</span></div>
@@ -75,5 +102,6 @@
 <script src="app.js"></script>
 <script src="palette-override.js"></script>
 <script src="edit-override.js"></script>
+<script src="deadline-feature.js"></script>
 </body>
 </html>
