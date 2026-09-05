@@ -1,0 +1,53 @@
+/* Date click manager: white vertical panel anchored beside the clicked calendar day. */
+.calendar-card{position:relative;overflow:visible}
+#selectedDeadlines.day-manager-panel{
+  position:fixed!important;
+  z-index:220;
+  width:286px;
+  min-height:330px;
+  max-height:min(430px,calc(100vh - 28px));
+  margin:0!important;
+  padding:16px!important;
+  border:1px solid #eee6ea!important;
+  border-radius:18px!important;
+  background:#fff!important;
+  box-shadow:0 18px 50px rgba(70,51,60,.16)!important;
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+  color:#4f474c;
+}
+#selectedDeadlines.day-manager-panel[hidden]{display:none!important}
+.day-manager-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding-bottom:12px;border-bottom:1px solid #f1ecef}
+.day-manager-kicker{font-size:9.5px;font-weight:800;color:#df6f97;margin-bottom:3px}
+.day-manager-date{font-size:17px;font-weight:800;letter-spacing:-.035em;color:#443d41}
+.day-manager-summary{margin-top:4px;font-size:9.5px;color:#aaa0a6}
+.day-manager-close{width:28px;height:28px;border:0;border-radius:50%;background:#faf7f8;color:#9c9197;font-size:18px;line-height:1;display:grid;place-items:center;flex:none}
+.day-manager-close:hover{background:#f7edf1;color:#d4668b}
+.day-manager-scroll{flex:1;min-height:0;overflow-y:auto;padding:12px 2px 2px 0;scrollbar-width:thin;scrollbar-color:#eadfe3 transparent}
+.day-manager-scroll::-webkit-scrollbar{width:5px}.day-manager-scroll::-webkit-scrollbar-track{background:transparent}.day-manager-scroll::-webkit-scrollbar-thumb{background:#eadfe3;border-radius:999px}
+.day-manager-section+.day-manager-section{margin-top:16px;padding-top:14px;border-top:1px solid #f2edef}
+.day-manager-section-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.day-manager-section-head strong{font-size:11px;color:#5b5257}.day-manager-section-head span{font-size:9px;color:#b2a7ad}
+.day-manager-empty{padding:14px 10px;border:1px dashed #eee5e9;border-radius:12px;text-align:center;font-size:9.5px;color:#b4a9af;background:#fffdfd}
+.dm-row{border:1px solid #eee7ea;border-radius:13px;background:#fff;padding:10px;margin-bottom:7px}
+.dm-row:last-child{margin-bottom:0}
+.dm-row-top{display:flex;align-items:flex-start;gap:7px}
+.dm-row-main{flex:1;min-width:0}
+.dm-row-title{font-size:10.5px;font-weight:750;line-height:1.35;color:#554c51;white-space:normal;word-break:break-word}
+.dm-row-title a{color:inherit;text-decoration:none}.dm-row-title a:hover{text-decoration:underline}
+.dm-row-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-top:5px;font-size:8.5px;color:#a3999f}
+.dm-dday{display:inline-flex;align-items:center;border-radius:999px;background:#fff0f4;color:#d75f84;padding:3px 6px;font-weight:800}
+.dm-event-dot{width:9px;height:9px;border-radius:50%;margin-top:3px;flex:none;border:1px solid rgba(0,0,0,.04)}
+.dm-tools{display:flex;align-items:center;gap:2px;flex:none}
+.dm-tools button,.dm-tools a{width:22px;height:22px;border:0;border-radius:7px;background:transparent;color:#b0a6ab;font-size:11px;text-decoration:none;display:grid;place-items:center}
+.dm-tools button:hover,.dm-tools a:hover{background:#faf2f5;color:#d46389}
+.dm-edit{display:grid;gap:7px}
+.dm-edit-row{display:grid;grid-template-columns:1fr 78px;gap:6px}
+.dm-edit-input{width:100%;min-width:0;border:1px solid #e9e1e5;border-radius:9px;background:#fff;padding:8px 9px;font:inherit;font-size:9.5px;color:#51494d;outline:none}
+.dm-edit-input:focus{border-color:#eaa3bb;box-shadow:0 0 0 2px rgba(234,143,176,.12)}
+.dm-edit-actions{display:flex;justify-content:flex-end;gap:5px}.dm-edit-actions button{border:0;border-radius:8px;padding:6px 9px;font-size:8.5px;font-weight:750}.dm-edit-cancel{background:#f4f1f2;color:#81777c}.dm-edit-save{background:#eb8fad;color:#fff}
+.dm-color-row{display:flex;align-items:center;gap:5px}.dm-color-btn{width:15px;height:15px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #e7dde1}.dm-color-btn.on{box-shadow:0 0 0 2px #e46f98}
+@media(max-width:800px){
+  #selectedDeadlines.day-manager-panel{width:min(88vw,320px);max-height:60vh;min-height:300px;border-radius:18px!important}
+}
