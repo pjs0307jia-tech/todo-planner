@@ -60,8 +60,8 @@
   }
 
   .calendar-card{order:1;padding:14px 10px 12px!important}
-  .deadline-panel{order:2;padding:14px!important;display:flex!important;flex-direction:column}
-  .side{order:3;padding:14px!important}
+  .side{order:2;padding:14px!important}
+  .deadline-panel{order:3;padding:14px!important;display:flex!important;flex-direction:column}
 
   .cal-head{margin-bottom:8px!important}
   .month-wrap{gap:6px;min-width:0}
