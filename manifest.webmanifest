@@ -1,7 +1,9 @@
 {
+  "id": "/todo-planner/",
   "name": "TO-DO!",
   "short_name": "TO-DO!",
-  "start_url": "./",
+  "start_url": "/todo-planner/",
+  "scope": "/todo-planner/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#fffafd",
@@ -9,6 +11,18 @@
     {
       "src": "/todo-planner/todo-ios-icon-20260905.png",
       "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/todo-planner/todo-ios-icon-20260905.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/todo-planner/todo-ios-icon-20260905.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }
