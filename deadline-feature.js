@@ -29,7 +29,7 @@ function persistDeadlines(){
 
 async function loadDeadlineData(){
   if(!userCode)return;
-  let local=loadDeadlineLocal();
+  const local=loadDeadlineLocal();
   let cloud=null;
   if(CLOUD_READY){
     try{const raw=await cloudRequest('load');if(Array.isArray(raw?.state?.deadlines))cloud=raw.state.deadlines}catch(e){console.warn('deadline cloud load failed',e)}
@@ -86,6 +86,7 @@ function renderDeadlineBoard(){
 }
 
 function renderCalendarDeadlines(){
+  document.querySelectorAll('.deadline-calendar-chip,.deadline-calendar-more').forEach(el=>el.remove());
   if(activeMode!=='job')return;
   const buttons=[...document.querySelectorAll('#grid .day')];if(!buttons.length)return;
   const y=view.getFullYear(),m=view.getMonth(),first=new Date(y,m,1),start=new Date(y,m,1-first.getDay());
@@ -114,7 +115,7 @@ function renderSelectedDeadlines(){
 
 function renderDeadlineFeature(){
   const panel=$('deadlinePanel');if(panel)panel.style.display=activeMode==='job'?'flex':'none';
-  if(activeMode==='job'){renderDeadlineBoard();renderCalendarDeadlines();renderSelectedDeadlines()}
+  if(activeMode==='job'){renderDeadlineBoard();renderSelectedDeadlines()}
 }
 
 function setupDeadlineEvents(){
@@ -125,6 +126,8 @@ function setupDeadlineEvents(){
 
 const _deadlineQueueSave=queueSave;
 queueSave=function(){if(state&&typeof state==='object')state.deadlines=applicationDeadlines;saveDeadlineLocal();_deadlineQueueSave()};
+const _deadlineRenderCalendar=renderCalendar;
+renderCalendar=function(){_deadlineRenderCalendar();renderCalendarDeadlines()};
 const _deadlineRenderAll=renderAll;
 renderAll=function(){_deadlineRenderAll();renderDeadlineFeature()};
 const _deadlineOpenPlanner=openPlanner;
