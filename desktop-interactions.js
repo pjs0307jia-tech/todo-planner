@@ -5,6 +5,8 @@
   if(!grid||!todoList)return;
 
   let singleClickTimer=null;
+  let lastTapAt=0;
+  let lastTapKey='';
   let dragPayload=null;
   let activeDropDay=null;
   let suppressClicksUntil=0;
@@ -25,7 +27,7 @@
     return d;
   }
 
-  function selectDesktopDate(d,openManager){
+  function selectCalendarDate(d,openManager){
     if(!d)return;
     selected=new Date(d);
     if(d.getMonth()!==view.getMonth()||d.getFullYear()!==view.getFullYear()){
@@ -41,11 +43,10 @@
     }
   }
 
-  // Desktop: one click selects the date; a double click opens the manager.
-  // The short delay keeps the calendar DOM stable long enough for the browser
-  // to recognise the second click reliably.
+  // All devices: one click/tap selects the date; a quick second click/tap
+  // on the same date opens the day manager. We detect the double tap ourselves
+  // because mobile Safari does not always emit dblclick consistently.
   grid.addEventListener('click',e=>{
-    if(!isDesktop())return;
     const day=e.target.closest('.day');
     if(!day||!grid.contains(day))return;
     e.preventDefault();
@@ -55,22 +56,30 @@
 
     const d=dateForDay(day);
     if(!d)return;
+    const key=dateKey(d);
+    const now=Date.now();
+    const isDouble=lastTapKey===key&&(now-lastTapAt)<=380;
 
-    if(e.detail>=2){
+    if(isDouble){
       clearTimeout(singleClickTimer);
       singleClickTimer=null;
-      selectDesktopDate(d,true);
+      lastTapAt=0;
+      lastTapKey='';
+      selectCalendarDate(d,true);
       return;
     }
 
     clearTimeout(singleClickTimer);
+    lastTapAt=now;
+    lastTapKey=key;
     singleClickTimer=setTimeout(()=>{
       singleClickTimer=null;
-      selectDesktopDate(d,false);
-    },260);
+      if(lastTapKey===key){lastTapAt=0;lastTapKey=''}
+      selectCalendarDate(d,false);
+    },300);
   },true);
 
-  // Fallback for browsers that report the second click detail differently.
+  // Desktop fallback for browsers that provide a native dblclick event.
   grid.addEventListener('dblclick',e=>{
     if(!isDesktop())return;
     const day=e.target.closest('.day');
@@ -80,8 +89,10 @@
     e.stopImmediatePropagation();
     clearTimeout(singleClickTimer);
     singleClickTimer=null;
+    lastTapAt=0;
+    lastTapKey='';
     const d=dateForDay(day);
-    if(d)selectDesktopDate(d,true);
+    if(d)selectCalendarDate(d,true);
   },true);
 
   function clearDropTarget(){
@@ -216,6 +227,8 @@
   window.addEventListener('resize',()=>{
     clearTimeout(singleClickTimer);
     singleClickTimer=null;
+    lastTapAt=0;
+    lastTapKey='';
     clearDropTarget();
     enhanceTodoDrag();
   });
