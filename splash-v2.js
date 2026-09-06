@@ -1,3 +1,34 @@
+(function installDeadlinePersistenceGuard(){
+  if(window.__deadlinePersistenceGuardInstalled)return;
+  window.__deadlinePersistenceGuardInstalled=true;
+
+  const originalNormalize=normalize;
+  normalize=function(raw){
+    const next=originalNormalize(raw);
+    if(Array.isArray(raw?.deadlines))next.deadlines=raw.deadlines;
+    else if(Array.isArray(state?.deadlines))next.deadlines=state.deadlines;
+    else next.deadlines=[];
+    return next;
+  };
+
+  const originalCloudRequest=cloudRequest;
+  cloudRequest=async function(action,extra={}){
+    const result=await originalCloudRequest(action,extra);
+    if(action==='load'&&result?.state){
+      let local=[];
+      try{
+        const parsed=JSON.parse(localStorage.getItem(`todoPlanner_deadlines_${userCode||'guest'}`));
+        if(Array.isArray(parsed))local=parsed;
+      }catch{}
+      const cloud=Array.isArray(result.state.deadlines)?result.state.deadlines:[];
+      if(cloud.length===0&&local.length>0){
+        result.state.deadlines=local;
+      }
+    }
+    return result;
+  };
+})();
+
 (function showStandaloneSplashV2(){
   const standalone=(window.navigator.standalone===true)||window.matchMedia('(display-mode: standalone)').matches;
   if(!standalone||document.getElementById('todoAppSplash'))return;
