@@ -1,0 +1,9 @@
+.check{transition:background .16s ease,border-color .16s ease,color .16s ease,transform .12s ease}
+.check:active{transform:scale(.92)}
+.check.done{background:#8db9a0!important;border-color:#8db9a0!important;color:#fff!important;font-weight:800}
+.check.postponed{background:#f0c85b!important;border-color:#f0c85b!important;color:#fff!important;font-size:13px!important;font-weight:900;line-height:1}
+.check.skipped{background:#e48484!important;border-color:#e48484!important;color:#fff!important;font-size:12px!important;font-weight:900;line-height:1}
+.todo-item.postponed{border-color:#f3e5b8;background:#fffdf6}
+.todo-item.postponed .todo-text{color:#8e7a46}
+.todo-item.skipped{border-color:#f1d6d6;background:#fffafa}
+.todo-item.skipped .todo-text{text-decoration:line-through;color:#bf9292}
