@@ -41,7 +41,7 @@
           <mask id="todoLogoMaskV2" maskUnits="userSpaceOnUse" x="0" y="0" width="320" height="320">
             <rect width="320" height="320" fill="black"/>
             <path fill="white" d="M34 42Q34 31 45 31H126Q137 31 137 42V55Q137 66 126 66H103V137Q103 150 90 150H80Q67 150 67 137V66H45Q34 66 34 55Z"/>
-            <path d="M226 139C214 126 158 92 158 57C158 35 175 23 193 23C207 23 219 30 226 42C234 30 246 23 260 23C279 23 296 36 296 57C296 92 239 126 226 139Z" fill="none" stroke="white" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+            <path d="M226 139C214 126 158 92 158 57C158 35 175 23 193 23C207 23 219 30 226 42C234 30 246 23 260 23C279 23 296 36 296 57C296 92 239 126 226 139Z" fill="white"/>
             <path fill="white" fill-rule="evenodd" d="M35 171H80C117 171 139 194 139 229C139 264 117 287 80 287H35Q27 287 27 279V179Q27 171 35 171ZM65 197V261H79C98 261 110 249 110 229C110 209 98 197 79 197Z"/>
             <circle cx="203" cy="229" r="55" fill="none" stroke="white" stroke-width="28"/>
             <rect x="277" y="171" width="25" height="78" rx="12.5" fill="white"/>
