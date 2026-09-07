@@ -119,7 +119,23 @@
   .todo-add{font-size:12px;padding:0 15px;min-width:58px}
   .mood-box{padding:11px 12px}
   .rate-btn{width:30px;height:30px;font-size:24px}
-  .todo-list{max-height:48vh;overflow-y:auto;padding-right:2px;overscroll-behavior:contain}
+  /* Keep the mobile TO-DO card compact: only the list itself scrolls. */
+  .side .todo-list{
+    max-height:min(38svh,360px)!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    min-height:0!important;
+    padding-right:4px!important;
+    -webkit-overflow-scrolling:touch;
+    overscroll-behavior:contain;
+    scrollbar-width:thin;
+    scrollbar-color:#ead8df transparent;
+  }
+  .side .todo-list::-webkit-scrollbar{width:5px}
+  .side .todo-list::-webkit-scrollbar-track{background:transparent}
+  .side .todo-list::-webkit-scrollbar-thumb{background:#ead8df;border-radius:999px}
+  body[data-mode="work"] .side .todo-list{scrollbar-color:#dbe7f4 transparent}
+  body[data-mode="work"] .side .todo-list::-webkit-scrollbar-thumb{background:#dbe7f4}
   .todo-item{padding:11px;gap:9px}
   .todo-text{font-size:12px}
 
