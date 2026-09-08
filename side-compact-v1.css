@@ -1,4 +1,83 @@
-/* Compact the mobile TO-DO panel so more items are visible without changing desktop. */
+/* Compact the TO-DO panel so more items are visible without changing the overall layout. */
+@media (min-width:801px){
+  .side{
+    padding:14px 16px 12px!important;
+  }
+
+  .side-label{
+    margin-bottom:1px!important;
+    line-height:1.15!important;
+  }
+
+  .side-date{
+    margin:0!important;
+    line-height:1.04!important;
+  }
+
+  .holiday-name{
+    margin-top:2px!important;
+    min-height:8px!important;
+    line-height:1.15!important;
+  }
+  .holiday-name:empty{
+    display:none!important;
+  }
+
+  .progress{
+    grid-template-columns:43px 1fr!important;
+    gap:9px!important;
+    margin:7px 0 8px!important;
+    padding:7px 9px!important;
+  }
+  .ring{width:43px!important;height:43px!important}
+  .ring:after{width:33px!important;height:33px!important}
+  .progress-copy strong{margin-bottom:1px!important}
+
+  .todo-form{
+    gap:6px!important;
+    margin:0!important;
+  }
+  .todo-input{
+    padding:8px 9px!important;
+  }
+  .todo-add{
+    padding:0 11px!important;
+  }
+
+  .mood-box{
+    margin:7px 0 8px!important;
+    padding:8px 10px!important;
+  }
+  .mood-top{margin-bottom:5px!important}
+  .rating{gap:4px!important}
+  .rate-btn{
+    width:24px!important;
+    height:24px!important;
+    font-size:20px!important;
+  }
+
+  .side .diary-note-wrap{
+    margin-top:7px!important;
+    padding-top:7px!important;
+  }
+  .side .diary-note-head{
+    margin-bottom:5px!important;
+  }
+
+  .side .todo-list{
+    gap:5px!important;
+  }
+  .side .todo-item{
+    padding:8px 9px!important;
+    gap:7px!important;
+  }
+
+  .side-note{
+    margin-top:5px!important;
+    line-height:1.15!important;
+  }
+}
+
 @media (max-width:800px){
   .side{
     padding:12px 14px 11px!important;
