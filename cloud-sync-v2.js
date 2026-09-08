@@ -74,6 +74,11 @@
         if(raw?.updated_at)next._cloudUpdatedAt=raw.updated_at;
         state=next;
         applyFeatureCopies();
+
+        // Important for mobile/PWA: after a fresh cloud state lands, immediately carry
+        // postponed todos for BOTH job and work modes before rendering the screen.
+        if(typeof processPostponedTodos==='function')processPostponedTodos(true);
+
         if(typeof saveLocal==='function')saveLocal();
         if(typeof renderAll==='function')renderAll();
         if(typeof setSyncStatus==='function')setSyncStatus('cloud');
