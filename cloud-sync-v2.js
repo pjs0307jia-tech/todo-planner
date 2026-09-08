@@ -10,6 +10,7 @@
       version:3,
       todos:{job:src.todos?.job||{},work:src.todos?.work||{}},
       moods:{job:src.moods?.job||{},work:src.moods?.work||{}},
+      notes:{job:src.notes?.job||{},work:src.notes?.work||{}},
       events:src.events||{},
       deadlines:Array.isArray(src.deadlines)?src.deadlines:[],
       workItems:Array.isArray(src.workItems)?src.workItems:[]
@@ -45,6 +46,8 @@
       if(typeof workSort==='function')workItems.sort(workSort);
       if(typeof saveWorkLocal==='function')saveWorkLocal();
     }
+
+    if(typeof syncDiaryLocalFromState==='function')syncDiaryLocalFromState();
   }
 
   async function pullLatest(force=false){
