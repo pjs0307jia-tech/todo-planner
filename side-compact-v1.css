@@ -35,7 +35,8 @@
 
   .todo-form{
     gap:6px!important;
-    margin:0 0 8px!important;
+    margin:0 0 12px!important;
+    flex:none!important;
   }
   .todo-input{
     padding:8px 9px!important;
@@ -66,6 +67,7 @@
 
   .side .todo-list{
     gap:5px!important;
+    padding-top:2px!important;
   }
   .side .todo-item{
     padding:8px 9px!important;
@@ -114,7 +116,8 @@
 
   .todo-form{
     gap:7px!important;
-    margin:0 0 9px!important;
+    margin:0 0 14px!important;
+    flex:none!important;
   }
   .todo-input{
     padding:9px 11px!important;
@@ -140,6 +143,7 @@
   .side .todo-list{
     max-height:min(45svh,420px)!important;
     gap:5px!important;
+    padding-top:2px!important;
   }
   .todo-item{
     padding:9px 10px!important;
