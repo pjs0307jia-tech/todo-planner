@@ -1,6 +1,6 @@
 (function(){
   let running=false;
-  let lastProcessedDate='';
+  let lastProcessedStamp='';
 
   function makeId(){
     return crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random());
@@ -10,8 +10,65 @@
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
 
+  function parseDateKey(k){
+    const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(k||''));
+    if(!m)return null;
+    const d=new Date(Number(m[1]),Number(m[2])-1,Number(m[3]));
+    d.setHours(0,0,0,0);
+    return Number.isNaN(d.getTime())?null:d;
+  }
+
+  function nextDateKey(k){
+    const d=parseDateKey(k);if(!d)return '';
+    d.setDate(d.getDate()+1);
+    return localDateKey(d);
+  }
+
   function normalizeText(v){
     return String(v||'').trim().replace(/\s+/g,' ');
+  }
+
+  function processMode(mode,todayKey){
+    const bucket=state.todos[mode]||(state.todos[mode]={});
+    let changed=false;
+
+    Object.keys(bucket).sort().forEach(sourceKey=>{
+      if(sourceKey>=todayKey)return;
+      const targetKey=nextDateKey(sourceKey);
+      if(!targetKey||targetKey>todayKey)return;
+
+      const source=Array.isArray(bucket[sourceKey])?bucket[sourceKey]:[];
+      const postponed=source.filter(todo=>{
+        const status=typeof todoStatus==='function'?todoStatus(todo):(todo?.status||'pending');
+        return status==='postponed'&&normalizeText(todo?.text);
+      });
+      if(!postponed.length)return;
+
+      const target=Array.isArray(bucket[targetKey])?bucket[targetKey]:(bucket[targetKey]=[]);
+      postponed.forEach(todo=>{
+        const sourceId=String(todo.id||'');
+        const text=String(todo.text||'').trim();
+        const textKey=normalizeText(text);
+        if(!textKey)return;
+
+        const alreadyExists=target.some(item=>{
+          if(item?.rolloverFrom?.date===sourceKey&&String(item?.rolloverFrom?.id||'')===sourceId)return true;
+          return normalizeText(item?.text)===textKey;
+        });
+        if(alreadyExists)return;
+
+        target.push({
+          id:makeId(),
+          text,
+          done:false,
+          status:'pending',
+          rolloverFrom:{date:sourceKey,id:sourceId,mode}
+        });
+        changed=true;
+      });
+    });
+
+    return changed;
   }
 
   function processPostponedTodos(force=false){
@@ -20,53 +77,19 @@
     const now=new Date();
     now.setHours(0,0,0,0);
     const todayKey=localDateKey(now);
-    if(!force&&todayKey===lastProcessedDate)return false;
-
-    const yesterday=new Date(now);
-    yesterday.setDate(now.getDate()-1);
-    const yesterdayKey=localDateKey(yesterday);
-    let changed=false;
+    const stamp=`${todayKey}:${Object.keys(state.todos.job||{}).length}:${Object.keys(state.todos.work||{}).length}`;
+    if(!force&&stamp===lastProcessedStamp)return false;
 
     running=true;
+    let changed=false;
     try{
-      ['job','work'].forEach(mode=>{
-        const bucket=state.todos[mode]||(state.todos[mode]={});
-        const source=Array.isArray(bucket[yesterdayKey])?bucket[yesterdayKey]:[];
-        const postponed=source.filter(todo=>{
-          const status=typeof todoStatus==='function'?todoStatus(todo):(todo?.status||'pending');
-          return status==='postponed'&&normalizeText(todo?.text);
-        });
-        if(!postponed.length)return;
+      changed=processMode('job',todayKey)||changed;
+      changed=processMode('work',todayKey)||changed;
+      lastProcessedStamp=stamp;
 
-        const target=Array.isArray(bucket[todayKey])?bucket[todayKey]:(bucket[todayKey]=[]);
-
-        postponed.forEach(todo=>{
-          const sourceId=String(todo.id||'');
-          const text=String(todo.text||'').trim();
-          const textKey=normalizeText(text);
-          if(!textKey)return;
-
-          const alreadyExists=target.some(item=>{
-            if(item?.rolloverFrom?.date===yesterdayKey&&String(item?.rolloverFrom?.id||'')===sourceId)return true;
-            return normalizeText(item?.text)===textKey;
-          });
-          if(alreadyExists)return;
-
-          target.push({
-            id:makeId(),
-            text,
-            done:false,
-            status:'pending',
-            rolloverFrom:{date:yesterdayKey,id:sourceId}
-          });
-          changed=true;
-        });
-      });
-
-      lastProcessedDate=todayKey;
       if(changed){
+        if(typeof saveLocal==='function')saveLocal();
         if(typeof queueSave==='function')queueSave();
-        else if(typeof saveLocal==='function')saveLocal();
       }
     }finally{
       running=false;
@@ -84,21 +107,25 @@
     };
   }
 
+  function refreshAfterCheck(force=true){
+    setTimeout(()=>{
+      if(processPostponedTodos(force)&&typeof renderAll==='function')renderAll();
+    },300);
+  }
+
   document.addEventListener('visibilitychange',()=>{
-    if(document.visibilityState==='visible')setTimeout(()=>{
-      if(processPostponedTodos(true)&&typeof renderAll==='function')renderAll();
-    },220);
+    if(document.visibilityState==='visible')refreshAfterCheck(true);
   });
-  window.addEventListener('focus',()=>setTimeout(()=>{
-    if(processPostponedTodos(true)&&typeof renderAll==='function')renderAll();
-  },220));
+  window.addEventListener('focus',()=>refreshAfterCheck(true));
+  window.addEventListener('pageshow',()=>refreshAfterCheck(true));
+  window.addEventListener('online',()=>refreshAfterCheck(true));
 
   setInterval(()=>{
     if(document.visibilityState!=='visible')return;
     if(processPostponedTodos(false)&&typeof renderAll==='function')renderAll();
-  },60000);
+  },30000);
 
   setTimeout(()=>{
     if(processPostponedTodos(true)&&typeof renderAll==='function')renderAll();
-  },1200);
+  },1400);
 })();
