@@ -124,7 +124,18 @@
   </div>
 </div>
 <div class="toast" id="toast"></div>
+<script>
+(function(){
+  try{
+    const code=localStorage.getItem('todoPlanner_activeCode')||'';
+    if(!code)return;
+    const raw=localStorage.getItem(`todoPlanner_v3_${code}`);
+    if(raw)sessionStorage.setItem(`todoPlanner_preload_snapshot_${code}`,raw);
+  }catch{}
+})();
+</script>
 <script src="app.js?v=83"></script>
+<script src="storage-safety-v1.js?v=1"></script>
 <script src="calendar-doubletap-v3.js?v=1"></script>
 <script src="splash-v2.js?v=78"></script>
 <script src="palette-override.js?v=72"></script>
