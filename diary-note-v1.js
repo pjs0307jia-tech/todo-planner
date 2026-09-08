@@ -1,5 +1,6 @@
 (function(){
   const MAX_LEN=400;
+  let noteSaveTimer=null;
 
   function diaryLocalKey(){return `todoPlanner_diary_${userCode||'guest'}`}
   function parse(raw){try{return raw?JSON.parse(raw):null}catch{return null}}
@@ -31,6 +32,13 @@
   }
   function modeNotes(){return ensureNotes()[activeMode]}
   function selectedKey(){return typeof dateKey==='function'?dateKey(selected):''}
+  function scheduleCloudSave(){
+    if(!state)return;
+    state._updatedAt=new Date().toISOString();
+    if(typeof saveLocal==='function')saveLocal();
+    clearTimeout(noteSaveTimer);
+    noteSaveTimer=setTimeout(()=>{if(typeof queueSave==='function')queueSave();},500);
+  }
 
   function ensureStyle(){
     if(document.getElementById('diaryNoteStyle'))return;
@@ -70,8 +78,12 @@
       const key=selectedKey();if(!key)return;
       notes[key]=input.value.slice(0,MAX_LEN);
       saveDiaryLocal();
-      if(typeof queueSave==='function')queueSave();
+      scheduleCloudSave();
       autoSize(input);
+    });
+    input.addEventListener('blur',()=>{
+      clearTimeout(noteSaveTimer);
+      if(typeof queueSave==='function')queueSave();
     });
     head.append(title,hint);wrap.append(head,input);box.append(wrap);
     return wrap;
