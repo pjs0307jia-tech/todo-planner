@@ -46,14 +46,14 @@
       .diary-note-head strong{font-size:12px;font-weight:800;color:var(--ink,#504a4d)}
       .diary-note-head span{font-size:10px;color:var(--muted,#aaa0a5)}
       .diary-note-editor[hidden],.diary-note-view[hidden]{display:none!important}
-      .diary-note-input{display:block;width:100%;min-height:34px;max-height:70px;resize:none;overflow-y:auto;box-sizing:border-box;border:0;border-radius:9px;background:rgba(255,255,255,.62);padding:7px 9px;font:inherit;font-size:12px;line-height:1.4;color:var(--ink,#504a4d);outline:none;box-shadow:inset 0 0 0 1px rgba(232,214,220,.8);transition:box-shadow .15s,background .15s}
+      .diary-note-editor{display:flex;align-items:flex-start;gap:6px;width:100%}
+      .diary-note-input{display:block;flex:1 1 auto;min-width:0;width:auto;min-height:34px;max-height:58px;resize:none;overflow-y:auto;box-sizing:border-box;border:0;border-radius:9px;background:rgba(255,255,255,.62);padding:7px 9px;font:inherit;font-size:12px;line-height:1.4;color:var(--ink,#504a4d);outline:none;box-shadow:inset 0 0 0 1px rgba(232,214,220,.8);transition:box-shadow .15s,background .15s}
       .diary-note-input::placeholder{color:#c4b9be}
       .diary-note-input:focus{background:#fff;box-shadow:inset 0 0 0 1.5px var(--accent,#ec92ad)}
       body[data-mode="work"] .diary-note-input{box-shadow:inset 0 0 0 1px rgba(210,225,240,.9)}
       body[data-mode="work"] .diary-note-input:focus{box-shadow:inset 0 0 0 1.5px var(--accent,#80a9d7)}
-      .diary-note-actions{display:flex;justify-content:flex-end;align-items:center;margin-top:5px}
       .diary-note-save,.diary-note-edit{border:0;font:inherit;cursor:pointer;-webkit-tap-highlight-color:transparent}
-      .diary-note-save{height:28px;padding:0 12px;border-radius:9px;font-size:10.5px;font-weight:800;background:var(--accent,#ec92ad);color:#fff}
+      .diary-note-save{flex:0 0 auto;height:34px;padding:0 12px;border-radius:9px;font-size:10.5px;font-weight:800;background:var(--accent,#ec92ad);color:#fff}
       .diary-note-view{position:relative;min-height:32px;box-sizing:border-box;border:0;border-radius:9px;background:linear-gradient(90deg,rgba(255,240,244,.68),rgba(255,250,252,.28));padding:6px 34px 6px 7px;box-shadow:none;cursor:text;transition:background .15s ease}
       .diary-note-view:hover{background:rgba(255,240,244,.82)}
       body[data-mode="work"] .diary-note-view{background:linear-gradient(90deg,rgba(237,245,255,.78),rgba(248,251,255,.28));box-shadow:none}
@@ -64,10 +64,11 @@
       body[data-mode="work"] .diary-note-edit:hover{background:rgba(128,169,215,.12)}
       @media(max-width:800px){
         .diary-note-wrap{margin-top:6px;padding-top:6px}
-        .diary-note-input{min-height:38px;max-height:72px;font-size:16px;padding:7px 9px}
+        .diary-note-editor{gap:7px}
+        .diary-note-input{min-height:38px;max-height:60px;font-size:16px;padding:7px 9px}
         .diary-note-head{margin-bottom:4px}
         .diary-note-head strong{font-size:12px}.diary-note-head span{font-size:10px}
-        .diary-note-save{height:29px;padding:0 12px;font-size:11px}
+        .diary-note-save{height:38px;padding:0 13px;font-size:11px}
         .diary-note-view{min-height:35px;padding:7px 35px 7px 7px;border-radius:9px}
         .diary-note-view-text{font-size:12.5px;line-height:1.42}
         .diary-note-edit{right:5px;width:27px;height:27px;font-size:16px;line-height:27px}
@@ -80,7 +81,7 @@
     if(!input)return;
     input.style.height='auto';
     const min=window.innerWidth<=800?38:34;
-    const max=window.innerWidth<=800?72:70;
+    const max=window.innerWidth<=800?60:58;
     input.style.height=Math.max(min,Math.min(input.scrollHeight,max))+'px';
   }
 
@@ -120,9 +121,8 @@
       autoSize(input);
     });
 
-    const actions=document.createElement('div');actions.className='diary-note-actions';
     const save=document.createElement('button');save.type='button';save.className='diary-note-save';save.textContent='저장';
-    actions.append(save);editor.append(input,actions);
+    editor.append(input,save);
 
     const view=document.createElement('div');view.className='diary-note-view';view.hidden=true;view.tabIndex=0;view.setAttribute('role','button');view.setAttribute('aria-label','메모 수정');
     const text=document.createElement('div');text.className='diary-note-view-text';
