@@ -1,0 +1,74 @@
+/* Compact the mobile TO-DO panel so more items are visible without changing desktop. */
+@media (max-width:800px){
+  .side{
+    padding:12px 14px 11px!important;
+  }
+
+  .side-label{
+    margin-bottom:1px!important;
+    line-height:1.2!important;
+  }
+
+  .side-date{
+    line-height:1.06!important;
+    margin:0!important;
+  }
+
+  .holiday-name{
+    margin-top:2px!important;
+    min-height:0!important;
+    line-height:1.2!important;
+  }
+  .holiday-name:empty{
+    display:none!important;
+  }
+
+  .progress{
+    grid-template-columns:46px 1fr!important;
+    gap:10px!important;
+    margin:7px 0 8px!important;
+    padding:8px 10px!important;
+  }
+  .ring{width:46px!important;height:46px!important}
+  .ring:after{width:35px!important;height:35px!important}
+  .progress-copy strong{margin-bottom:1px!important}
+
+  .todo-form{
+    gap:7px!important;
+    margin:0!important;
+  }
+  .todo-input{
+    padding:9px 11px!important;
+    min-height:38px!important;
+  }
+  .todo-add{
+    min-height:38px!important;
+    padding:0 14px!important;
+  }
+
+  .mood-box{
+    margin:8px 0 8px!important;
+    padding:9px 11px!important;
+  }
+  .mood-top{margin-bottom:5px!important}
+  .rating{gap:4px!important}
+  .rate-btn{
+    width:27px!important;
+    height:27px!important;
+    font-size:22px!important;
+  }
+
+  .side .todo-list{
+    max-height:min(45svh,420px)!important;
+    gap:5px!important;
+  }
+  .todo-item{
+    padding:9px 10px!important;
+    gap:8px!important;
+  }
+
+  .side-note{
+    margin-top:6px!important;
+    line-height:1.2!important;
+  }
+}
