@@ -7,16 +7,30 @@
     try{return raw?JSON.parse(raw):null}catch{return null}
   }
 
+  function featureFallbacks(){
+    const code=(typeof userCode!=='undefined'&&userCode)||preloadCode||'';
+    if(!code)return {deadlines:[],workItems:[]};
+    const deadlines=parseJson(localStorage.getItem(`todoPlanner_deadlines_${code}`));
+    const workItems=parseJson(localStorage.getItem(`todoPlanner_workItems_${code}`));
+    return {
+      deadlines:Array.isArray(deadlines)?deadlines:[],
+      workItems:Array.isArray(workItems)?workItems:[]
+    };
+  }
+
   function normalizeSafe(raw){
     const src=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
+    const fallback=featureFallbacks();
+    const hasDeadlines=Array.isArray(src.deadlines);
+    const hasWorkItems=Array.isArray(src.workItems);
     return {
       ...src,
       version:3,
       todos:{job:src.todos?.job||{},work:src.todos?.work||{}},
       moods:{job:src.moods?.job||{},work:src.moods?.work||{}},
       events:src.events||{},
-      deadlines:Array.isArray(src.deadlines)?src.deadlines:[],
-      workItems:Array.isArray(src.workItems)?src.workItems:[]
+      deadlines:hasDeadlines?src.deadlines:fallback.deadlines,
+      workItems:hasWorkItems?src.workItems:fallback.workItems
     };
   }
 
@@ -59,7 +73,6 @@
   }
 
   const preload=parseJson(preloadKey?sessionStorage.getItem(preloadKey):null);
-  const originalNormalize=normalize;
   normalize=function(raw){
     const cloud=normalizeSafe(raw);
     if(!preload||!preloadCode||userCode!==preloadCode)return cloud;
