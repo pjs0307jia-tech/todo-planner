@@ -28,6 +28,7 @@
       version:3,
       todos:{job:src.todos?.job||{},work:src.todos?.work||{}},
       moods:{job:src.moods?.job||{},work:src.moods?.work||{}},
+      notes:{job:src.notes?.job||{},work:src.notes?.work||{}},
       events:src.events||{},
       deadlines:hasDeadlines?src.deadlines:fallback.deadlines,
       workItems:hasWorkItems?src.workItems:fallback.workItems
@@ -66,6 +67,10 @@
         job:{...(cloud.moods?.job||{}),...(local.moods?.job||{})},
         work:{...(cloud.moods?.work||{}),...(local.moods?.work||{})}
       },
+      notes:{
+        job:{...(cloud.notes?.job||{}),...(local.notes?.job||{})},
+        work:{...(cloud.notes?.work||{}),...(local.notes?.work||{})}
+      },
       events:mergeDateArrays(local.events,cloud.events),
       deadlines:mergeItems(local.deadlines,cloud.deadlines),
       workItems:mergeItems(local.workItems,cloud.workItems)
@@ -101,7 +106,7 @@
   };
 
   emptyState=function(){
-    return {version:3,todos:{job:{},work:{}},moods:{job:{},work:{}},events:{},deadlines:[],workItems:[],_updatedAt:''};
+    return {version:3,todos:{job:{},work:{}},moods:{job:{},work:{}},notes:{job:{},work:{}},events:{},deadlines:[],workItems:[],_updatedAt:''};
   };
 
   loadLocal=function(){
