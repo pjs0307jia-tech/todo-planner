@@ -2,172 +2,185 @@
   const preloadCode=localStorage.getItem('todoPlanner_activeCode')||'';
   const preloadKey=preloadCode?`todoPlanner_preload_snapshot_${preloadCode}`:'';
   let recoveredFromLocal=false;
+  let cloudSaveInFlight=false;
+  let cloudSaveAgain=false;
 
-  function parseJson(raw){
-    try{return raw?JSON.parse(raw):null}catch{return null}
-  }
+  function parseJson(raw){try{return raw?JSON.parse(raw):null}catch{return null}}
+  function clone(v){try{return JSON.parse(JSON.stringify(v))}catch{return v}}
+  function currentCode(){return (typeof userCode!=='undefined'&&userCode)||preloadCode||''}
+  function pendingKey(){const code=currentCode();return code?`todoPlanner_sync_pending_${code}`:''}
+  function historyKey(){const code=currentCode();return code?`todoPlanner_local_history_${code}`:''}
 
   function featureFallbacks(){
-    const code=(typeof userCode!=='undefined'&&userCode)||preloadCode||'';
+    const code=currentCode();
     if(!code)return {deadlines:[],workItems:[]};
     const deadlines=parseJson(localStorage.getItem(`todoPlanner_deadlines_${code}`));
     const workItems=parseJson(localStorage.getItem(`todoPlanner_workItems_${code}`));
-    return {
-      deadlines:Array.isArray(deadlines)?deadlines:[],
-      workItems:Array.isArray(workItems)?workItems:[]
-    };
+    return {deadlines:Array.isArray(deadlines)?deadlines:[],workItems:Array.isArray(workItems)?workItems:[]};
   }
 
   function normalizeSafe(raw){
     const src=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
     const fallback=featureFallbacks();
-    const hasDeadlines=Array.isArray(src.deadlines);
-    const hasWorkItems=Array.isArray(src.workItems);
     return {
       ...src,
       version:3,
-      todos:{job:src.todos?.job||{},work:src.todos?.work||{}},
-      moods:{job:src.moods?.job||{},work:src.moods?.work||{}},
-      notes:{job:src.notes?.job||{},work:src.notes?.work||{}},
-      events:src.events||{},
-      deadlines:hasDeadlines?src.deadlines:fallback.deadlines,
-      workItems:hasWorkItems?src.workItems:fallback.workItems
+      todos:{job:src.todos?.job&&typeof src.todos.job==='object'?src.todos.job:{},work:src.todos?.work&&typeof src.todos.work==='object'?src.todos.work:{}},
+      moods:{job:src.moods?.job&&typeof src.moods.job==='object'?src.moods.job:{},work:src.moods?.work&&typeof src.moods.work==='object'?src.moods.work:{}},
+      notes:{job:src.notes?.job&&typeof src.notes.job==='object'?src.notes.job:{},work:src.notes?.work&&typeof src.notes.work==='object'?src.notes.work:{}},
+      events:src.events&&typeof src.events==='object'?src.events:{},
+      deadlines:Array.isArray(src.deadlines)?src.deadlines:fallback.deadlines,
+      workItems:Array.isArray(src.workItems)?src.workItems:fallback.workItems,
+      _deletedTodoIds:Array.isArray(src._deletedTodoIds)?src._deletedTodoIds:[]
     };
   }
 
-  function mergeItems(primary=[],secondary=[]){
-    const out=[];
-    const seen=new Set();
-    [...primary,...secondary].forEach(item=>{
+  function deletedSet(a,b){return new Set([...(a?._deletedTodoIds||[]),...(b?._deletedTodoIds||[])].map(String))}
+  function mergeItems(primary=[],secondary=[],deleted=new Set()){
+    const out=[];const seen=new Set();
+    [...(Array.isArray(primary)?primary:[]),...(Array.isArray(secondary)?secondary:[])].forEach(item=>{
       const id=String(item?.id||'');
-      if(!id||seen.has(id))return;
+      if(!id||deleted.has(id)||seen.has(id))return;
       seen.add(id);out.push(item);
     });
     return out;
   }
-
-  function mergeDateArrays(primary={},secondary={}){
+  function mergeDateArrays(primary={},secondary={},deleted=new Set()){
     const out={};
     const keys=new Set([...Object.keys(secondary||{}),...Object.keys(primary||{})]);
-    keys.forEach(k=>{out[k]=mergeItems(primary?.[k]||[],secondary?.[k]||[])});
+    keys.forEach(k=>{const arr=mergeItems(primary?.[k],secondary?.[k],deleted);if(arr.length)out[k]=arr});
     return out;
   }
-
-  function mergeStates(localState,cloudState){
-    const local=normalizeSafe(localState),cloud=normalizeSafe(cloudState);
+  function mergeStates(primaryState,secondaryState){
+    const primary=normalizeSafe(primaryState),secondary=normalizeSafe(secondaryState);
+    const deleted=deletedSet(primary,secondary);
     return {
-      ...cloud,
-      ...local,
+      ...secondary,
+      ...primary,
       version:3,
-      todos:{
-        job:mergeDateArrays(local.todos.job,cloud.todos.job),
-        work:mergeDateArrays(local.todos.work,cloud.todos.work)
-      },
-      moods:{
-        job:{...(cloud.moods?.job||{}),...(local.moods?.job||{})},
-        work:{...(cloud.moods?.work||{}),...(local.moods?.work||{})}
-      },
-      notes:{
-        job:{...(cloud.notes?.job||{}),...(local.notes?.job||{})},
-        work:{...(cloud.notes?.work||{}),...(local.notes?.work||{})}
-      },
-      events:mergeDateArrays(local.events,cloud.events),
-      deadlines:mergeItems(local.deadlines,cloud.deadlines),
-      workItems:mergeItems(local.workItems,cloud.workItems)
+      todos:{job:mergeDateArrays(primary.todos.job,secondary.todos.job,deleted),work:mergeDateArrays(primary.todos.work,secondary.todos.work,deleted)},
+      moods:{job:{...(secondary.moods?.job||{}),...(primary.moods?.job||{})},work:{...(secondary.moods?.work||{}),...(primary.moods?.work||{})}},
+      notes:{job:{...(secondary.notes?.job||{}),...(primary.notes?.job||{})},work:{...(secondary.notes?.work||{}),...(primary.notes?.work||{})}},
+      events:mergeDateArrays(primary.events,secondary.events,new Set()),
+      deadlines:mergeItems(primary.deadlines,secondary.deadlines,new Set()),
+      workItems:mergeItems(primary.workItems,secondary.workItems,new Set()),
+      _deletedTodoIds:Array.from(deleted).slice(-500)
     };
+  }
+
+  function backupLocal(reason='change'){
+    const code=currentCode();if(!code||!state||typeof state!=='object')return;
+    try{
+      const key=historyKey();
+      const history=parseJson(localStorage.getItem(key));
+      const arr=Array.isArray(history)?history:[];
+      const snapshot={at:new Date().toISOString(),reason,state:clone(normalizeSafe(state))};
+      const last=arr[arr.length-1];
+      if(!last||JSON.stringify(last.state)!==JSON.stringify(snapshot.state))arr.push(snapshot);
+      if(arr.length>30)arr.splice(0,arr.length-30);
+      localStorage.setItem(key,JSON.stringify(arr));
+    }catch(e){console.warn('local history save failed',e)}
+  }
+
+  function markPending(stamp){
+    const key=pendingKey();if(!key)return;
+    try{localStorage.setItem(key,stamp||state?._updatedAt||new Date().toISOString())}catch{}
+  }
+  function pendingStamp(){const key=pendingKey();if(!key)return '';try{return localStorage.getItem(key)||''}catch{return ''}}
+  function clearPendingIf(stamp){
+    const key=pendingKey();if(!key)return;
+    try{const cur=localStorage.getItem(key)||'';if(!cur||cur===stamp||Date.parse(cur)<=Date.parse(stamp))localStorage.removeItem(key)}catch{}
+  }
+  function showSaving(){
+    try{
+      if(typeof setSyncStatus==='function')setSyncStatus('local');
+      const note=document.getElementById('storageNote');if(note&&currentCode())note.textContent=`ID ${currentCode()} · 저장 중…`;
+    }catch{}
   }
 
   const preload=parseJson(preloadKey?sessionStorage.getItem(preloadKey):null);
   normalize=function(raw){
     const cloud=normalizeSafe(raw);
     if(!preload||!preloadCode||userCode!==preloadCode)return cloud;
-
     const local=normalizeSafe(preload);
-    const localTs=Date.parse(local._updatedAt||'')||0;
-    const cloudTs=Date.parse(cloud._updatedAt||'')||0;
+    const localTs=Date.parse(local._updatedAt||'')||0,cloudTs=Date.parse(cloud._updatedAt||'')||0;
+    const merged=localTs>=cloudTs?mergeStates(local,cloud):mergeStates(cloud,local);
 
-    if(localTs>cloudTs){
+    // Even when the cloud timestamp is newer, never throw away a local-only todo unless
+    // it has an explicit deletion tombstone. This is the recovery path for interrupted saves.
+    if(JSON.stringify(merged)!==JSON.stringify(cloud)){
+      merged._updatedAt=new Date().toISOString();
       recoveredFromLocal=true;
-      return local;
+      markPending(merged._updatedAt);
     }
-
-    const migrationKey=`todoPlanner_storage_safety_migrated_${preloadCode}`;
-    if(!localTs&&!cloudTs&&!localStorage.getItem(migrationKey)){
-      localStorage.setItem(migrationKey,'1');
-      const merged=mergeStates(local,cloud);
-      if(JSON.stringify(merged)!==JSON.stringify(cloud)){
-        merged._updatedAt=new Date().toISOString();
-        recoveredFromLocal=true;
-      }
-      return merged;
-    }
-
-    return cloud;
+    return merged;
   };
 
-  emptyState=function(){
-    return {version:3,todos:{job:{},work:{}},moods:{job:{},work:{}},notes:{job:{},work:{}},events:{},deadlines:[],workItems:[],_updatedAt:''};
-  };
-
-  loadLocal=function(){
-    try{return normalizeSafe(JSON.parse(localStorage.getItem(storageKey())))}catch{return emptyState()}
-  };
-
-  saveLocal=function(){
-    try{localStorage.setItem(storageKey(),JSON.stringify(state))}catch(e){console.warn('local save failed',e)}
-  };
+  emptyState=function(){return {version:3,todos:{job:{},work:{}},moods:{job:{},work:{}},notes:{job:{},work:{}},events:{},deadlines:[],workItems:[],_deletedTodoIds:[],_updatedAt:''}};
+  loadLocal=function(){try{return normalizeSafe(JSON.parse(localStorage.getItem(storageKey())))}catch{return emptyState()}};
+  saveLocal=function(){try{localStorage.setItem(storageKey(),JSON.stringify(state))}catch(e){console.warn('local save failed',e)}};
 
   saveCloud=async function(){
-    if(!CLOUD_READY||!userCode)return;
+    if(!CLOUD_READY||!currentCode())return false;
+    if(cloudSaveInFlight){cloudSaveAgain=true;return false}
+    cloudSaveInFlight=true;
+    const snapshot=clone(normalizeSafe(state));
+    const sentStamp=snapshot._updatedAt||new Date().toISOString();
+    snapshot._updatedAt=sentStamp;
     try{
-      const data=await cloudRequest('save',{state});
+      const data=await cloudRequest('save',{state:snapshot});
       if(data?.updated_at)state._cloudUpdatedAt=data.updated_at;
+      clearPendingIf(sentStamp);
       saveLocal();
-      setSyncStatus('cloud');
+      if(pendingStamp())showSaving();else if(typeof setSyncStatus==='function')setSyncStatus('cloud');
+      return true;
     }catch(e){
-      console.warn(e);
-      setSyncStatus('local');
+      console.warn('cloud save failed',e);
+      markPending(state?._updatedAt||sentStamp);
+      if(typeof setSyncStatus==='function')setSyncStatus('local');
+      return false;
+    }finally{
+      cloudSaveInFlight=false;
+      if(cloudSaveAgain||pendingStamp()){
+        cloudSaveAgain=false;
+        if(pendingStamp()&&state?._updatedAt!==sentStamp)setTimeout(()=>saveCloud(),80);
+      }
     }
   };
 
   queueSave=function(){
     state._updatedAt=new Date().toISOString();
+    backupLocal('queue-save');
     saveLocal();
-    if(CLOUD_READY){
-      clearTimeout(saveTimer);
-      saveTimer=setTimeout(saveCloud,120);
-    }
-    setSyncStatus(CLOUD_READY?'cloud':'local');
+    markPending(state._updatedAt);
+    showSaving();
+    if(CLOUD_READY){clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveCloud(),60)}
   };
 
   function flushPendingSave(){
-    if(!CLOUD_READY||!userCode)return;
+    if(!CLOUD_READY||!currentCode())return;
     clearTimeout(saveTimer);
     if(!state._updatedAt)state._updatedAt=new Date().toISOString();
-    saveLocal();
-    const body=JSON.stringify({action:'save',code:userCode,state});
+    backupLocal('page-hide');saveLocal();markPending(state._updatedAt);
+    const snapshot=clone(normalizeSafe(state));
+    const body=JSON.stringify({action:'save',code:currentCode(),state:snapshot});
     try{
-      if(body.length<60000){
-        fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{
-          method:'POST',
-          headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},
-          body,
-          keepalive:true
-        }).catch(()=>{});
-      }else{
-        saveCloud();
-      }
+      if(body.length<60000){fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},body,keepalive:true}).catch(()=>{})}
+      else saveCloud();
     }catch{}
   }
+
+  window.plannerNormalizeSafe=normalizeSafe;
+  window.plannerMergeStates=mergeStates;
+  window.plannerBackupLocal=backupLocal;
+  window.plannerSyncPending=()=>Boolean(pendingStamp());
+  window.plannerMarkSyncPending=()=>{if(state?._updatedAt)markPending(state._updatedAt)};
 
   window.addEventListener('pagehide',flushPendingSave);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPendingSave()});
 
   const recoveryCheck=setInterval(()=>{
-    if(recoveredFromLocal){
-      clearInterval(recoveryCheck);
-      queueSave();
-    }
+    if(recoveredFromLocal){clearInterval(recoveryCheck);backupLocal('startup-recovery');queueSave()}
   },250);
   setTimeout(()=>clearInterval(recoveryCheck),5000);
 })();
