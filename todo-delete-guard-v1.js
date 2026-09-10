@@ -12,6 +12,12 @@
     if(ids.length>250)state._deletedTodoIds=ids.slice(-250);
   }
 
+  async function deleteFromVault(id){
+    if(!id||!CLOUD_READY||!userCode)return;
+    try{await cloudRequest('todo_delete',{todo_id:String(id)})}
+    catch(e){console.warn('todo item vault delete failed',e)}
+  }
+
   // Intercept the existing delete button before app.js removes the item.
   // This writes an explicit tombstone so the server can distinguish a real delete
   // from an accidental stale/empty-client overwrite.
@@ -35,10 +41,13 @@
     e.stopPropagation();
     e.stopImmediatePropagation();
 
-    rememberDeleted(String(todo.id));
-    bucket[key]=arr.filter(item=>String(item?.id)!==String(todo.id));
+    const deletedId=String(todo.id);
+    rememberDeleted(deletedId);
+    bucket[key]=arr.filter(item=>String(item?.id)!==deletedId);
     if(!bucket[key].length)delete bucket[key];
 
+    // Exact item-level delete first; the full-state tombstone remains as a fallback.
+    deleteFromVault(deletedId);
     if(typeof queueSave==='function')queueSave();
     if(typeof renderAll==='function')renderAll();
   },true);
