@@ -2,10 +2,6 @@
   let running=false;
   let lastProcessedStamp='';
 
-  function makeId(){
-    return crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random());
-  }
-
   function localDateKey(d){
     return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
   }
@@ -26,6 +22,21 @@
 
   function normalizeText(v){
     return String(v||'').trim().replace(/\s+/g,' ');
+  }
+
+  function rolloverKey(mode,sourceKey,sourceId){
+    return `${mode}|${sourceKey}|${sourceId}`;
+  }
+
+  function rolloverId(mode,sourceKey,sourceId,textKey){
+    const seed=sourceId||encodeURIComponent(textKey);
+    return `rollover:${mode}:${sourceKey}:${seed}`;
+  }
+
+  function existingRolloverKey(item){
+    const r=item?.rolloverFrom;
+    if(!r||!r.date||!r.id)return '';
+    return rolloverKey(r.mode||'',String(r.date),String(r.id));
   }
 
   function processMode(mode,todayKey){
@@ -51,14 +62,18 @@
         const textKey=normalizeText(text);
         if(!textKey)return;
 
+        const sourceRollKey=rolloverKey(mode,sourceKey,sourceId);
+        const deterministicId=rolloverId(mode,sourceKey,sourceId,textKey);
+
         const alreadyExists=target.some(item=>{
-          if(item?.rolloverFrom?.date===sourceKey&&String(item?.rolloverFrom?.id||'')===sourceId)return true;
+          if(existingRolloverKey(item)===sourceRollKey)return true;
+          if(String(item?.id||'')===deterministicId)return true;
           return normalizeText(item?.text)===textKey;
         });
         if(alreadyExists)return;
 
         target.push({
-          id:makeId(),
+          id:deterministicId,
           text,
           done:false,
           status:'pending',
