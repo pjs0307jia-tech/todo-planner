@@ -130,13 +130,27 @@
   try{
     const code=localStorage.getItem('todoPlanner_activeCode')||'';
     if(!code)return;
-    const raw=localStorage.getItem(`todoPlanner_v3_${code}`);
-    if(raw)sessionStorage.setItem(`todoPlanner_preload_snapshot_${code}`,raw);
+    const key=`todoPlanner_preload_snapshot_${code}`;
+    const rescueKey=`todoPlanner_boot_rescue_${code}`;
+    const localRaw=localStorage.getItem(`todoPlanner_v3_${code}`)||'';
+    const existingRaw=sessionStorage.getItem(key)||'';
+    const parse=raw=>{try{return raw?JSON.parse(raw):null}catch{return null}};
+    const countTodos=s=>{
+      if(!s||typeof s!=='object')return 0;
+      let n=0;['job','work'].forEach(m=>Object.values(s.todos?.[m]||{}).forEach(a=>{if(Array.isArray(a))n+=a.length}));
+      return n;
+    };
+    const local=parse(localRaw),existing=parse(existingRaw);
+    if(existingRaw)localStorage.setItem(rescueKey,existingRaw);
+    if(!existingRaw&&localRaw){sessionStorage.setItem(key,localRaw);return}
+    if(!localRaw)return;
+    const lt=Date.parse(local?._updatedAt||'')||0,et=Date.parse(existing?._updatedAt||'')||0;
+    if(lt>et||(lt===et&&countTodos(local)>=countTodos(existing)))sessionStorage.setItem(key,localRaw);
   }catch{}
 })();
 </script>
 <script src="app.js?v=83"></script>
-<script src="storage-safety-v1.js?v=3"></script>
+<script src="storage-safety-v1.js?v=4"></script>
 <script src="todo-delete-guard-v1.js?v=2"></script>
 <script src="todo-save-guard-v1.js?v=1"></script>
 <script src="calendar-doubletap-v3.js?v=1"></script>
