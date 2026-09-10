@@ -1,6 +1,7 @@
 (function(){
   const preloadCode=localStorage.getItem('todoPlanner_activeCode')||'';
   const preloadKey=preloadCode?`todoPlanner_preload_snapshot_${preloadCode}`:'';
+  const rescueKey=preloadCode?`todoPlanner_boot_rescue_${preloadCode}`:'';
   let recoveredFromLocal=false;
   let cloudSaveInFlight=false;
   let cloudSaveAgain=false;
@@ -68,6 +69,19 @@
     };
   }
 
+  function snapshotScore(raw){
+    const s=normalizeSafe(raw);let n=0;
+    ['job','work'].forEach(mode=>Object.values(s.todos?.[mode]||{}).forEach(arr=>{if(Array.isArray(arr))n+=arr.length}));
+    n+=(Array.isArray(s.deadlines)?s.deadlines.length:0)+(Array.isArray(s.workItems)?s.workItems.length:0);
+    return n;
+  }
+  function pickBetterSnapshot(a,b){
+    if(!a)return b;if(!b)return a;
+    const at=Date.parse(a._updatedAt||'')||0,bt=Date.parse(b._updatedAt||'')||0;
+    if(at!==bt)return at>bt?a:b;
+    return snapshotScore(a)>=snapshotScore(b)?a:b;
+  }
+
   function backupLocal(reason='change'){
     const code=currentCode();if(!code||!state||typeof state!=='object')return;
     try{
@@ -82,32 +96,21 @@
     }catch(e){console.warn('local history save failed',e)}
   }
 
-  function markPending(stamp){
-    const key=pendingKey();if(!key)return;
-    try{localStorage.setItem(key,stamp||state?._updatedAt||new Date().toISOString())}catch{}
-  }
+  function markPending(stamp){const key=pendingKey();if(!key)return;try{localStorage.setItem(key,stamp||state?._updatedAt||new Date().toISOString())}catch{}}
   function pendingStamp(){const key=pendingKey();if(!key)return '';try{return localStorage.getItem(key)||''}catch{return ''}}
-  function clearPendingIf(stamp){
-    const key=pendingKey();if(!key)return;
-    try{const cur=localStorage.getItem(key)||'';if(!cur||cur===stamp||Date.parse(cur)<=Date.parse(stamp))localStorage.removeItem(key)}catch{}
-  }
-  function showSaving(){
-    try{
-      if(typeof setSyncStatus==='function')setSyncStatus('local');
-      const note=document.getElementById('storageNote');if(note&&currentCode())note.textContent=`ID ${currentCode()} · 저장 중…`;
-    }catch{}
-  }
+  function clearPendingIf(stamp){const key=pendingKey();if(!key)return;try{const cur=localStorage.getItem(key)||'';if(!cur||cur===stamp||Date.parse(cur)<=Date.parse(stamp))localStorage.removeItem(key)}catch{}}
+  function showSaving(){try{if(typeof setSyncStatus==='function')setSyncStatus('local');const note=document.getElementById('storageNote');if(note&&currentCode())note.textContent=`ID ${currentCode()} · 저장 중…`}catch{}}
 
   const preload=parseJson(preloadKey?sessionStorage.getItem(preloadKey):null);
+  const rescue=parseJson(rescueKey?localStorage.getItem(rescueKey):null);
+  const bestBoot=pickBetterSnapshot(preload,rescue);
+
   normalize=function(raw){
     const cloud=normalizeSafe(raw);
-    if(!preload||!preloadCode||userCode!==preloadCode)return cloud;
-    const local=normalizeSafe(preload);
+    if(!bestBoot||!preloadCode||userCode!==preloadCode)return cloud;
+    const local=normalizeSafe(bestBoot);
     const localTs=Date.parse(local._updatedAt||'')||0,cloudTs=Date.parse(cloud._updatedAt||'')||0;
     const merged=localTs>=cloudTs?mergeStates(local,cloud):mergeStates(cloud,local);
-
-    // Even when the cloud timestamp is newer, never throw away a local-only todo unless
-    // it has an explicit deletion tombstone. This is the recovery path for interrupted saves.
     if(JSON.stringify(merged)!==JSON.stringify(cloud)){
       merged._updatedAt=new Date().toISOString();
       recoveredFromLocal=true;
@@ -150,10 +153,7 @@
 
   queueSave=function(){
     state._updatedAt=new Date().toISOString();
-    backupLocal('queue-save');
-    saveLocal();
-    markPending(state._updatedAt);
-    showSaving();
+    backupLocal('queue-save');saveLocal();markPending(state._updatedAt);showSaving();
     if(CLOUD_READY){clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveCloud(),60)}
   };
 
@@ -179,8 +179,6 @@
   window.addEventListener('pagehide',flushPendingSave);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPendingSave()});
 
-  const recoveryCheck=setInterval(()=>{
-    if(recoveredFromLocal){clearInterval(recoveryCheck);backupLocal('startup-recovery');queueSave()}
-  },250);
+  const recoveryCheck=setInterval(()=>{if(recoveredFromLocal){clearInterval(recoveryCheck);backupLocal('startup-recovery');queueSave()}},250);
   setTimeout(()=>clearInterval(recoveryCheck),5000);
 })();
