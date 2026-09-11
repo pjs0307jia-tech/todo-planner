@@ -22,6 +22,21 @@ function isUrgentDeadline(item){const diff=deadlineDateTime(item)-new Date();ret
 function formatDeadlineMeta(item){const [y,m,d]=item.date.split('-');return `${Number(m)}/${Number(d)} ${item.time||'23:59'} 마감`}
 function deadlinesForDate(key){return applicationDeadlines.filter(x=>x.date===key).sort(deadlineSort)}
 
+function normalizeDeadlineList(list){
+  return (Array.isArray(list)?list:[])
+    .filter(x=>x&&x.id&&x.company&&x.date)
+    .map(x=>({id:x.id,company:String(x.company),date:String(x.date),time:String(x.time||'23:59'),url:normalizeDeadlineUrl(x.url||'')}))
+    .sort(deadlineSort);
+}
+
+function syncDeadlineState(){
+  if(!userCode)return;
+  const source=state&&Array.isArray(state.deadlines)?state.deadlines:loadDeadlineLocal();
+  const next=normalizeDeadlineList(source);
+  if(JSON.stringify(next)!==JSON.stringify(applicationDeadlines))applicationDeadlines=next;
+  saveDeadlineLocal();
+}
+
 function persistDeadlines(){
   saveDeadlineLocal();
   if(state&&typeof state==='object')state.deadlines=applicationDeadlines;
@@ -30,14 +45,7 @@ function persistDeadlines(){
 
 async function loadDeadlineData(){
   if(!userCode)return;
-  const local=loadDeadlineLocal();
-  let cloud=null;
-  if(CLOUD_READY){
-    try{const raw=await cloudRequest('load');if(Array.isArray(raw?.state?.deadlines))cloud=raw.state.deadlines}catch(e){console.warn('deadline cloud load failed',e)}
-  }
-  applicationDeadlines=(cloud??local).filter(x=>x&&x.id&&x.company&&x.date).map(x=>({id:x.id,company:String(x.company),date:String(x.date),time:String(x.time||'23:59'),url:normalizeDeadlineUrl(x.url||'')})).sort(deadlineSort);
-  if(state&&typeof state==='object')state.deadlines=applicationDeadlines;
-  saveDeadlineLocal();
+  syncDeadlineState();
   renderDeadlineFeature();
 }
 
@@ -142,6 +150,7 @@ function renderSelectedDeadlines(forceOpen=false){
 function openSelectedDeadlinePopup(){renderSelectedDeadlines(true)}
 
 function renderDeadlineFeature(){
+  syncDeadlineState();
   const panel=$('deadlinePanel');if(panel)panel.style.display=activeMode==='job'?'flex':'none';
   if(activeMode==='job'){renderDeadlineBoard();renderSelectedDeadlines(false)}
 }
@@ -174,11 +183,11 @@ renderCalendar=function(){_deadlineRenderCalendar();renderCalendarDeadlines()};
 const _deadlineRenderAll=renderAll;
 renderAll=function(){_deadlineRenderAll();renderDeadlineFeature()};
 const _deadlineOpenPlanner=openPlanner;
-openPlanner=async function(code){applicationDeadlines=[];selectedDeadlinePopupOpen=false;await _deadlineOpenPlanner(code);await loadDeadlineData();renderAll()};
+openPlanner=async function(code){applicationDeadlines=[];selectedDeadlinePopupOpen=false;await _deadlineOpenPlanner(code);loadDeadlineData();renderAll()};
 
 function bootDeadlineFeature(){
   if(deadlineBooted)return;deadlineBooted=true;setupDeadlineEvents();
-  const tryLoad=async()=>{if(userCode){await loadDeadlineData();renderAll()}else setTimeout(tryLoad,250)};tryLoad();
+  const tryLoad=()=>{if(userCode){loadDeadlineData();renderAll()}else setTimeout(tryLoad,100)};tryLoad();
   setInterval(()=>{if(activeMode==='job')renderDeadlineBoard()},60000);
 }
 bootDeadlineFeature();
