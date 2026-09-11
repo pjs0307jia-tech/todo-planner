@@ -2,7 +2,6 @@
   let pulling=false;
   let lastPull=0;
 
-  function ts(v){return Date.parse(v||'')||0}
   function safeState(raw){
     if(typeof window.plannerNormalizeSafe==='function')return window.plannerNormalizeSafe(raw);
     const src=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
@@ -40,45 +39,39 @@
     const now=Date.now();if(!force&&now-lastPull<8000)return;
     lastPull=now;pulling=true;
     try{
-      // Never let a cloud read race ahead of an unsynced local edit.
+      // A real unsynced user edit is always pushed first.
       if(await pushPendingFirst())return;
 
       const raw=await cloudRequest('load');
       const cloud=raw?.state;if(!cloud||typeof cloud!=='object')return;
       const cloudSafe=safeState(cloud),localSafe=safeState(state);
-      const cloudClientTs=ts(cloudSafe._updatedAt),localClientTs=ts(localSafe._updatedAt);
 
-      if(localClientTs>cloudClientTs){
+      if(typeof window.plannerBackupLocal==='function')window.plannerBackupLocal('before-cloud-refresh');
+
+      // With no dirty local edit, cloud wins all same-ID conflicts.
+      // Local-only items are preserved and pushed once, so a PC-only new todo is not lost.
+      const merged=merge(cloudSafe,localSafe);
+      const cloudJson=JSON.stringify(cloudSafe),mergedJson=JSON.stringify(merged);
+
+      if(mergedJson!==cloudJson){
+        merged._updatedAt=new Date().toISOString();
+        state=merged;
+        if(typeof saveLocal==='function')saveLocal();
         if(typeof window.plannerMarkSyncPending==='function')window.plannerMarkSyncPending();
+        applyFeatureCopies();
+        if(typeof processPostponedTodos==='function')processPostponedTodos(true);
+        if(typeof renderAll==='function')renderAll();
         if(typeof saveCloud==='function')await saveCloud();
         return;
       }
 
-      if(cloudClientTs>localClientTs||force){
-        if(typeof window.plannerBackupLocal==='function')window.plannerBackupLocal('before-cloud-refresh');
-        const merged=merge(cloudSafe,localSafe);
-        const cloudJson=JSON.stringify(cloudSafe),mergedJson=JSON.stringify(merged);
-
-        if(mergedJson!==cloudJson){
-          // Local-only data exists. Keep it, mark it dirty, and push it back instead of deleting it.
-          merged._updatedAt=new Date().toISOString();
-          state=merged;
-          if(typeof saveLocal==='function')saveLocal();
-          if(typeof window.plannerMarkSyncPending==='function')window.plannerMarkSyncPending();
-          applyFeatureCopies();
-          if(typeof processPostponedTodos==='function')processPostponedTodos(true);
-          if(typeof renderAll==='function')renderAll();
-          if(typeof saveCloud==='function')await saveCloud();
-          return;
-        }
-
-        const next=cloudSafe;if(raw?.updated_at)next._cloudUpdatedAt=raw.updated_at;
-        state=next;applyFeatureCopies();
-        if(typeof processPostponedTodos==='function')processPostponedTodos(true);
-        if(typeof saveLocal==='function')saveLocal();
-        if(typeof renderAll==='function')renderAll();
-        if(typeof setSyncStatus==='function')setSyncStatus('cloud');
-      }
+      const next=cloudSafe;if(raw?.updated_at)next._cloudUpdatedAt=raw.updated_at;
+      state=next;
+      applyFeatureCopies();
+      if(typeof processPostponedTodos==='function')processPostponedTodos(true);
+      if(typeof saveLocal==='function')saveLocal();
+      if(typeof renderAll==='function')renderAll();
+      if(typeof setSyncStatus==='function')setSyncStatus('cloud');
     }catch(e){
       console.warn('cloud refresh failed',e);
       if(typeof setSyncStatus==='function')setSyncStatus('local');
