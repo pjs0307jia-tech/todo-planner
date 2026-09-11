@@ -8,20 +8,23 @@
     return {mode,date,arr:Array.isArray(arr)?arr:[]};
   }
 
-  async function persistTodoItem(mode,date,todo){
-    if(!todo?.id||!mode||!date||!CLOUD_READY||!userCode)return false;
-    try{
-      await cloudRequest('todo_upsert',{
-        mode,
-        date,
-        todo:JSON.parse(JSON.stringify(todo)),
-        client_updated_at:state?._updatedAt||new Date().toISOString()
-      });
+  function persistTodoItem(mode,date,todo){
+    if(!todo?.id||!mode||!date)return false;
+    const stamp=new Date().toISOString();
+    todo._itemUpdatedAt=stamp;
+    try{if(typeof saveLocal==='function')saveLocal()}catch{}
+    if(typeof window.todoVaultEnqueueUpsert==='function'){
+      window.todoVaultEnqueueUpsert(mode,date,todo,stamp);
       return true;
-    }catch(e){
-      console.warn('todo item vault save failed',e);
-      return false;
     }
+    if(!CLOUD_READY||!userCode)return false;
+    cloudRequest('todo_upsert',{
+      mode,
+      date,
+      todo:JSON.parse(JSON.stringify(todo)),
+      client_updated_at:stamp
+    }).catch(e=>console.warn('todo item vault save failed',e));
+    return true;
   }
 
   function forceTodoSave(reason){
@@ -33,11 +36,11 @@
         if(typeof saveLocal==='function')saveLocal();
         if(typeof window.plannerMarkSyncPending==='function')window.plannerMarkSyncPending();
         if(typeof saveCloud==='function')await saveCloud();
+        if(typeof window.todoVaultFlushOutbox==='function')window.todoVaultFlushOutbox();
       }catch(e){console.warn('todo immediate save failed',e)}
     },35);
   }
 
-  // Add: capture the IDs before app.js mutates state, then persist the newly-created item.
   document.addEventListener('submit',e=>{
     if(e.target?.id!=='todoForm')return;
     const before=modeDateSnapshot();
@@ -51,7 +54,6 @@
     forceTodoSave('todo-add');
   },true);
 
-  // Status change: remember the clicked todo ID, then persist its post-click state.
   document.addEventListener('click',e=>{
     const check=e.target?.closest?.('#todoList .check');
     if(!check)return;
