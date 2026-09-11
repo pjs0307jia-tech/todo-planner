@@ -9,7 +9,7 @@
   function parseJson(raw){try{return raw?JSON.parse(raw):null}catch{return null}}
   function clone(v){try{return JSON.parse(JSON.stringify(v))}catch{return v}}
   function currentCode(){return (typeof userCode!=='undefined'&&userCode)||preloadCode||''}
-  function pendingKey(){const code=currentCode();return code?`todoPlanner_sync_pending_${code}`:''}
+  function pendingKey(){const code=currentCode();return code?`todoPlanner_sync_pending_v2_${code}`:''}
   function historyKey(){const code=currentCode();return code?`todoPlanner_local_history_${code}`:''}
 
   function featureFallbacks(){
@@ -109,8 +109,9 @@
     const cloud=normalizeSafe(raw);
     if(!bestBoot||!preloadCode||userCode!==preloadCode)return cloud;
     const local=normalizeSafe(bestBoot);
-    const localTs=Date.parse(local._updatedAt||'')||0,cloudTs=Date.parse(cloud._updatedAt||'')||0;
-    const merged=localTs>=cloudTs?mergeStates(local,cloud):mergeStates(cloud,local);
+    const hasRealPending=Boolean(pendingStamp());
+    // Unsynced user edits may lead. Otherwise cloud is authoritative and stale mobile state cannot overwrite it.
+    const merged=hasRealPending?mergeStates(local,cloud):mergeStates(cloud,local);
     if(JSON.stringify(merged)!==JSON.stringify(cloud)){
       merged._updatedAt=new Date().toISOString();
       recoveredFromLocal=true;
@@ -159,9 +160,10 @@
 
   function flushPendingSave(){
     if(!CLOUD_READY||!currentCode())return;
+    // Backgrounding/closing is NOT a user edit. Only flush an already-dirty state.
+    if(!pendingStamp())return;
     clearTimeout(saveTimer);
-    if(!state._updatedAt)state._updatedAt=new Date().toISOString();
-    backupLocal('page-hide');saveLocal();markPending(state._updatedAt);
+    backupLocal('page-hide-pending');saveLocal();
     const snapshot=clone(normalizeSafe(state));
     const body=JSON.stringify({action:'save',code:currentCode(),state:snapshot});
     try{
