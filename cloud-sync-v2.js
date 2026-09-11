@@ -27,9 +27,13 @@
   }
 
   async function pushPendingFirst(){
+    if(typeof window.todoVaultOutboxPending==='function'&&window.todoVaultOutboxPending()){
+      if(typeof window.todoVaultFlushOutbox==='function')await window.todoVaultFlushOutbox();
+      if(typeof window.todoVaultOutboxPending==='function'&&window.todoVaultOutboxPending())return true;
+    }
     if(typeof window.plannerSyncPending==='function'&&window.plannerSyncPending()){
       if(typeof saveCloud==='function')await saveCloud();
-      return typeof window.plannerSyncPending==='function'&&window.plannerSyncPending();
+      if(typeof window.plannerSyncPending==='function'&&window.plannerSyncPending())return true;
     }
     return false;
   }
@@ -39,7 +43,6 @@
     const now=Date.now();if(!force&&now-lastPull<8000)return;
     lastPull=now;pulling=true;
     try{
-      // A real unsynced user edit is always pushed first.
       if(await pushPendingFirst())return;
 
       const raw=await cloudRequest('load');
@@ -48,8 +51,6 @@
 
       if(typeof window.plannerBackupLocal==='function')window.plannerBackupLocal('before-cloud-refresh');
 
-      // With no dirty local edit, cloud wins all same-ID conflicts.
-      // Local-only items are preserved and pushed once, so a PC-only new todo is not lost.
       const merged=merge(cloudSafe,localSafe);
       const cloudJson=JSON.stringify(cloudSafe),mergedJson=JSON.stringify(merged);
 
