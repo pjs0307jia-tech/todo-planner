@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TO-DO 9/12 복구</title>
+<style>
+  *{box-sizing:border-box} body{margin:0;background:#fff9fb;color:#544b50;font-family:-apple-system,BlinkMacSystemFont,"Pretendard","Noto Sans KR",sans-serif}
+  main{max-width:720px;margin:0 auto;padding:28px 18px 48px}.card{background:#fff;border:1px solid #f0e2e7;border-radius:22px;padding:20px;box-shadow:0 10px 28px rgba(90,60,70,.06);margin-bottom:14px}
+  h1{font-size:24px;margin:0 0 8px} p{line-height:1.55;margin:6px 0;color:#7b7075}.warn{background:#fff2f5;border-radius:14px;padding:12px 14px;color:#9a5f70;font-weight:700}
+  .mode{margin-top:18px}.mode h2{font-size:15px;margin:0 0 8px}.item{padding:10px 12px;background:#fff7fa;border-radius:12px;margin:6px 0;font-size:14px}.meta{font-size:12px;color:#aaa0a5;margin-top:6px}
+  button{width:100%;border:0;border-radius:14px;padding:14px 16px;background:#efb1c3;color:#fff;font-weight:800;font-size:15px;cursor:pointer;margin-top:14px}button:disabled{opacity:.45;cursor:not-allowed}.secondary{background:#f5edf0;color:#806f76}
+  #status{white-space:pre-wrap;font-size:13px;line-height:1.55;background:#fbf7f8;border-radius:14px;padding:12px;margin-top:14px;min-height:44px}.ok{color:#37805b}.bad{color:#b15c67}
+</style>
+</head>
+<body>
+<main>
+  <div class="card">
+    <h1>9월 12일 TO-DO 복구</h1>
+    <p>이 페이지는 기존 플래너를 실행하지 않고, <b>이 PC 브라우저에 남아 있는 백업만 읽습니다.</b></p>
+    <div class="warn">반드시 아까 투두를 작성했던 PC에서 열어주세요. 복구 버튼을 누르기 전까지 서버 데이터는 변경하지 않습니다.</div>
+    <div id="summary"></div>
+    <button id="restoreBtn" disabled>9/12 투두를 서버 금고에 복구</button>
+    <button id="rescanBtn" class="secondary">이 PC 백업 다시 찾기</button>
+    <div id="status">백업을 찾는 중…</div>
+  </div>
+</main>
+<script>
+(() => {
+  const TARGET='2026-09-12', CODE='0307';
+  const SUPABASE_URL='https://empbjojdpmeaottpesdt.supabase.co';
+  const APIKEY='sb_publishable_Af6LxJzQGT8Emahn-B30DA_IjC7hy0g';
+  const summary=document.getElementById('summary'), status=document.getElementById('status'), restoreBtn=document.getElementById('restoreBtn');
+  let best={job:null,work:null};
+
+  function parse(raw){try{return raw?JSON.parse(raw):null}catch{return null}}
+  function normItems(state,mode){const a=state?.todos?.[mode]?.[TARGET];return Array.isArray(a)?a.filter(x=>x&&x.id&&x.text):[]}
+  function stamp(state,fallback=''){return state?._updatedAt||fallback||''}
+  function score(c){return [c.items.length, Date.parse(c.at||'')||0]}
+  function better(a,b){if(!a)return b;if(!b)return a;const A=score(a),B=score(b);return B[0]>A[0]||(B[0]===A[0]&&B[1]>A[1])?b:a}
+
+  function gather(){
+    const candidates=[];
+    const add=(label,state,at='')=>{if(state&&typeof state==='object')candidates.push({label,state,at:stamp(state,at)})};
+    add('현재 PC 로컬 저장',parse(localStorage.getItem(`todoPlanner_v3_${CODE}`)));
+    add('부팅 구조 백업',parse(localStorage.getItem(`todoPlanner_boot_rescue_${CODE}`)));
+    add('세션 프리로드',parse(sessionStorage.getItem(`todoPlanner_preload_snapshot_${CODE}`)));
+    const hist=parse(localStorage.getItem(`todoPlanner_local_history_${CODE}`));
+    if(Array.isArray(hist)) hist.forEach((h,i)=>add(`로컬 히스토리 ${i+1}`,h?.state,h?.at));
+
+    best={job:null,work:null};
+    for(const c of candidates){
+      for(const mode of ['job','work']){
+        const items=normItems(c.state,mode);
+        if(items.length)best[mode]=better(best[mode],{...c,items,mode});
+      }
+    }
+    render(candidates.length);
+  }
+
+  function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+  function render(sourceCount){
+    const sections=[];
+    for(const [mode,label] of [['job','취준'],['work','업무']]){
+      const c=best[mode];
+      if(!c){sections.push(`<div class="mode"><h2>${label}</h2><div class="meta">9/12 백업 항목을 찾지 못했어요.</div></div>`);continue}
+      sections.push(`<div class="mode"><h2>${label} · ${c.items.length}개 발견</h2>${c.items.map(x=>`<div class="item">${esc(x.text)} <span class="meta">(${esc(x.status|| (x.done?'done':'pending'))})</span></div>`).join('')}<div class="meta">출처: ${esc(c.label)}${c.at?' · '+esc(c.at):''}</div></div>`);
+    }
+    summary.innerHTML=`<p class="meta">확인한 로컬 백업 묶음: ${sourceCount}개</p>`+sections.join('');
+    const total=(best.job?.items.length||0)+(best.work?.items.length||0);
+    restoreBtn.disabled=total===0;
+    status.textContent=total?`이 PC에서 9/12 투두 ${total}개를 찾았어요. 목록이 맞는지 보고 복구 버튼을 눌러주세요.`:'이 PC 로컬 백업에서 9/12 투두를 찾지 못했어요.';
+  }
+
+  async function post(body){
+    const r=await fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{method:'POST',headers:{'Content-Type':'application/json','apikey':APIKEY},body:JSON.stringify({code:CODE,...body})});
+    if(!r.ok)throw new Error(await r.text());
+    return r.json();
+  }
+
+  async function restore(){
+    restoreBtn.disabled=true;status.className='';status.textContent='서버 금고로 복구 중…';
+    try{
+      let n=0;
+      for(const mode of ['job','work']){
+        const c=best[mode]; if(!c)continue;
+        for(const todo of c.items){
+          await post({action:'todo_upsert',mode,date:TARGET,todo,client_updated_at:c.at||new Date().toISOString()}); n++;
+        }
+      }
+      const loaded=await post({action:'load'});
+      const jc=Array.isArray(loaded?.state?.todos?.job?.[TARGET])?loaded.state.todos.job[TARGET].length:0;
+      const wc=Array.isArray(loaded?.state?.todos?.work?.[TARGET])?loaded.state.todos.work[TARGET].length:0;
+      status.className='ok';status.textContent=`복구 요청 완료: ${n}개\n서버에서 다시 읽힌 9/12 투두: 취준 ${jc}개 · 업무 ${wc}개\n이제 일반 TO-DO 앱을 열어 확인해도 돼요.`;
+    }catch(e){
+      status.className='bad';status.textContent='복구 중 오류가 났어요. 이 페이지를 닫지 말고 화면을 캡처해 주세요.\n'+String(e?.message||e);
+      restoreBtn.disabled=false;
+    }
+  }
+
+  document.getElementById('rescanBtn').onclick=gather;
+  restoreBtn.onclick=restore;
+  gather();
+})();
+</script>
+</body>
+</html>
