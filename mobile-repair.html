@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>TO-DO 모바일 복구</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"Pretendard",sans-serif;background:#fffafd;color:#3e3438;margin:0;padding:24px}.card{max-width:620px;margin:0 auto;background:#fff;border:1px solid #f0dde4;border-radius:22px;padding:22px;box-shadow:0 10px 30px rgba(80,50,60,.07)}h1{font-size:22px;margin:0 0 8px}.sub{font-size:14px;line-height:1.55;color:#7a6a70}.status{margin:18px 0;padding:14px;border-radius:14px;background:#fff2f6;font-weight:700}.day{margin:14px 0;padding:14px;border-radius:14px;background:#faf7f8}.day b{display:block;margin-bottom:8px}.item{font-size:14px;padding:5px 0;border-bottom:1px dashed #eee}.item:last-child{border-bottom:0}.ok{background:#eaf8ef}.warn{background:#fff4df}.btn{width:100%;border:0;border-radius:14px;padding:14px 16px;font-size:16px;font-weight:800;background:#f7a9bf;color:#fff;margin-top:14px}.btn:disabled{opacity:.45}.small{font-size:12px;color:#94848a;margin-top:10px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>📱 모바일 TO-DO 복구</h1>
+<div class="sub">서버에 남아 있는 9/11·9/12 데이터를 직접 받아서 이 휴대폰의 오래된 로컬 상태를 교체합니다. 서버 데이터는 수정하지 않습니다.</div>
+<div id="status" class="status">서버 데이터 확인 중…</div>
+<div id="result"></div>
+<button id="apply" class="btn" disabled>이 서버값으로 모바일 복구</button>
+<div class="small">복구 전 현재 휴대폰 상태는 별도 백업으로 남겨둡니다. 복구 버튼을 누른 뒤 최신 앱 화면으로 이동합니다.</div>
+</div>
+<script>
+const SUPABASE_URL='https://empbjojdpmeaottpesdt.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_Af6LxJzQGT8Emahn-B30DA_IjC7hy0g';
+const CODE='0307';
+let serverState=null;
+const $=id=>document.getElementById(id);
+function items(mode,date){const a=serverState?.todos?.[mode]?.[date];return Array.isArray(a)?a:[]}
+function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+function render(){
+  let total=0,html='';
+  for(const date of ['2026-09-11','2026-09-12']){
+    const job=items('job',date),work=items('work',date);total+=job.length+work.length;
+    const all=[...job.map(x=>['취준',x]),...work.map(x=>['업무',x])];
+    html+=`<div class="day"><b>${date.slice(5).replace('-','/')} · ${all.length}개</b>${all.length?all.map(([m,x])=>`<div class="item">[${m}] ${esc(x?.text||'')} ${x?.status==='done'?'✅':x?.status==='postponed'?'💛':''}</div>`).join(''):'<div class="item">서버에 남은 투두 없음</div>'}</div>`;
+  }
+  $('result').innerHTML=html;
+  $('status').className='status '+(total?'ok':'warn');
+  $('status').textContent=total?`서버에서 9/11·9/12 투두 ${total}개를 찾았어요.`:'서버에서 9/11·9/12 투두를 찾지 못했어요. 복구 버튼은 잠가둘게요.';
+  $('apply').disabled=!total;
+}
+async function load(){
+  try{
+    const r=await fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},body:JSON.stringify({action:'load',code:CODE,_:Date.now()})});
+    if(!r.ok)throw new Error(await r.text());
+    const data=await r.json();serverState=data?.state||null;if(!serverState)throw new Error('state 없음');render();
+  }catch(e){$('status').className='status warn';$('status').textContent='서버 연결 실패: '+e.message;}
+}
+$('apply').onclick=async()=>{
+  if(!serverState)return;
+  $('apply').disabled=true;$('apply').textContent='복구 적용 중…';
+  try{
+    const key=`todoPlanner_v3_${CODE}`;
+    const old=localStorage.getItem(key);
+    if(old)localStorage.setItem(`todoPlanner_mobile_repair_backup_${CODE}_${Date.now()}`,old);
+    localStorage.setItem('todoPlanner_activeCode',CODE);
+    localStorage.setItem(key,JSON.stringify(serverState));
+    localStorage.removeItem(`todoPlanner_sync_pending_${CODE}`);
+    localStorage.removeItem(`todoPlanner_sync_pending_v2_${CODE}`);
+    localStorage.setItem(`todoPlanner_boot_rescue_${CODE}`,JSON.stringify(serverState));
+    sessionStorage.setItem(`todoPlanner_preload_snapshot_${CODE}`,JSON.stringify(serverState));
+    if('caches' in window){for(const k of await caches.keys())await caches.delete(k)}
+    if('serviceWorker' in navigator){for(const r of await navigator.serviceWorker.getRegistrations())await r.unregister()}
+    $('status').className='status ok';$('status').textContent='모바일 복구 완료. 최신 TO-DO 화면으로 이동합니다.';
+    setTimeout(()=>location.href=`./?mobileRepair=${Date.now()}`,900);
+  }catch(e){$('status').className='status warn';$('status').textContent='복구 적용 실패: '+e.message;$('apply').disabled=false;$('apply').textContent='다시 복구';}
+};
+load();
+</script>
+</body>
+</html>
