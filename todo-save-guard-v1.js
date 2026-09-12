@@ -14,10 +14,9 @@
     todo._itemUpdatedAt=stamp;
     if(typeof window.todoStatusLedgerRecord==='function')window.todoStatusLedgerRecord(mode,date,todo,stamp);
     try{if(typeof saveLocal==='function')saveLocal()}catch{}
-    if(typeof window.todoVaultEnqueueUpsert==='function'){
-      window.todoVaultEnqueueUpsert(mode,date,todo,stamp);
-      return true;
-    }
+    if(typeof window.todoVaultEnqueueUpsert==='function')window.todoVaultEnqueueUpsert(mode,date,todo,stamp);
+    if(typeof window.todoMainAckEnqueueUpsert==='function')window.todoMainAckEnqueueUpsert(mode,date,todo);
+    if(typeof window.todoVaultEnqueueUpsert==='function')return true;
     if(!CLOUD_READY||!userCode)return false;
     cloudRequest('todo_upsert',{
       mode,
@@ -38,6 +37,7 @@
         if(typeof window.plannerMarkSyncPending==='function')window.plannerMarkSyncPending();
         if(typeof saveCloud==='function')await saveCloud();
         if(typeof window.todoVaultFlushOutbox==='function')window.todoVaultFlushOutbox();
+        if(typeof window.todoMainAckFlush==='function')window.todoMainAckFlush();
       }catch(e){console.warn('todo immediate save failed',e)}
     },35);
   }
