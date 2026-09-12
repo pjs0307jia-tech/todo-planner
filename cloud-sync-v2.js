@@ -27,6 +27,12 @@
   }
 
   async function pushPendingFirst(){
+    // A todo mutation is not considered synced until the main cloud state reads back the same value.
+    if(typeof window.todoMainAckPending==='function'&&window.todoMainAckPending()){
+      if(typeof window.todoMainAckApplyPending==='function')window.todoMainAckApplyPending();
+      if(typeof window.todoMainAckFlush==='function')await window.todoMainAckFlush();
+      if(typeof window.todoMainAckPending==='function'&&window.todoMainAckPending())return true;
+    }
     if(typeof window.todoVaultOutboxPending==='function'&&window.todoVaultOutboxPending()){
       if(typeof window.todoVaultFlushOutbox==='function')await window.todoVaultFlushOutbox();
       if(typeof window.todoVaultOutboxPending==='function'&&window.todoVaultOutboxPending())return true;
