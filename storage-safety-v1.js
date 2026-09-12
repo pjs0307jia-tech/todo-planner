@@ -37,6 +37,46 @@
   }
 
   function deletedSet(a,b){return new Set([...(a?._deletedTodoIds||[]),...(b?._deletedTodoIds||[])].map(String))}
+  function todoStatusSafe(item){
+    if(item?.status==='done'||item?.status==='postponed'||item?.status==='skipped')return item.status;
+    return item?.done?'done':'pending';
+  }
+  function itemMutationMs(item){
+    const raw=item?._itemUpdatedAt||item?.itemUpdatedAt||'';
+    const n=Date.parse(raw||'');
+    return Number.isFinite(n)?n:0;
+  }
+  function chooseTodoItem(primary,secondary){
+    if(!primary)return secondary;
+    if(!secondary)return primary;
+    const pt=itemMutationMs(primary),st=itemMutationMs(secondary);
+    if(pt!==st)return pt>st?primary:secondary;
+    if(pt===0){
+      const ps=todoStatusSafe(primary),ss=todoStatusSafe(secondary);
+      if(ps!==ss){
+        if(ps==='pending'&&ss!=='pending')return secondary;
+        if(ss==='pending'&&ps!=='pending')return primary;
+      }
+    }
+    return primary;
+  }
+  function mergeTodoItems(primary=[],secondary=[],deleted=new Set()){
+    const p=Array.isArray(primary)?primary:[],s=Array.isArray(secondary)?secondary:[];
+    const secondaryById=new Map(s.map(item=>[String(item?.id||''),item]));
+    const out=[];const seen=new Set();
+    p.forEach(item=>{
+      const id=String(item?.id||'');
+      if(!id||deleted.has(id)||seen.has(id))return;
+      const chosen=chooseTodoItem(item,secondaryById.get(id));
+      if(chosen){out.push(chosen);seen.add(id)}
+    });
+    s.forEach(item=>{
+      const id=String(item?.id||'');
+      if(!id||deleted.has(id)||seen.has(id))return;
+      out.push(item);seen.add(id);
+    });
+    return out;
+  }
   function mergeItems(primary=[],secondary=[],deleted=new Set()){
     const out=[];const seen=new Set();
     [...(Array.isArray(primary)?primary:[]),...(Array.isArray(secondary)?secondary:[])].forEach(item=>{
@@ -44,6 +84,12 @@
       if(!id||deleted.has(id)||seen.has(id))return;
       seen.add(id);out.push(item);
     });
+    return out;
+  }
+  function mergeTodoDateArrays(primary={},secondary={},deleted=new Set()){
+    const out={};
+    const keys=new Set([...Object.keys(secondary||{}),...Object.keys(primary||{})]);
+    keys.forEach(k=>{const arr=mergeTodoItems(primary?.[k],secondary?.[k],deleted);if(arr.length)out[k]=arr});
     return out;
   }
   function mergeDateArrays(primary={},secondary={},deleted=new Set()){
@@ -59,7 +105,7 @@
       ...secondary,
       ...primary,
       version:3,
-      todos:{job:mergeDateArrays(primary.todos.job,secondary.todos.job,deleted),work:mergeDateArrays(primary.todos.work,secondary.todos.work,deleted)},
+      todos:{job:mergeTodoDateArrays(primary.todos.job,secondary.todos.job,deleted),work:mergeTodoDateArrays(primary.todos.work,secondary.todos.work,deleted)},
       moods:{job:{...(secondary.moods?.job||{}),...(primary.moods?.job||{})},work:{...(secondary.moods?.work||{}),...(primary.moods?.work||{})}},
       notes:{job:{...(secondary.notes?.job||{}),...(primary.notes?.job||{})},work:{...(secondary.notes?.work||{}),...(primary.notes?.work||{})}},
       events:mergeDateArrays(primary.events,secondary.events,new Set()),
@@ -67,6 +113,17 @@
       workItems:mergeItems(primary.workItems,secondary.workItems,new Set()),
       _deletedTodoIds:Array.from(deleted).slice(-500)
     };
+  }
+  function protectSnapshotTodos(localSnapshot,cloudState){
+    const local=normalizeSafe(localSnapshot),cloud=normalizeSafe(cloudState);
+    const deleted=deletedSet(local,cloud);
+    const out=clone(local);
+    out.todos={
+      job:mergeTodoDateArrays(local.todos.job,cloud.todos.job,deleted),
+      work:mergeTodoDateArrays(local.todos.work,cloud.todos.work,deleted)
+    };
+    out._deletedTodoIds=Array.from(deleted).slice(-500);
+    return out;
   }
 
   function snapshotScore(raw){
@@ -110,7 +167,6 @@
     if(!bestBoot||!preloadCode||userCode!==preloadCode)return cloud;
     const local=normalizeSafe(bestBoot);
     const hasRealPending=Boolean(pendingStamp());
-    // Unsynced user edits may lead. Otherwise cloud is authoritative and stale mobile state cannot overwrite it.
     const merged=hasRealPending?mergeStates(local,cloud):mergeStates(cloud,local);
     if(JSON.stringify(merged)!==JSON.stringify(cloud)){
       merged._updatedAt=new Date().toISOString();
@@ -128,11 +184,24 @@
     if(!CLOUD_READY||!currentCode())return false;
     if(cloudSaveInFlight){cloudSaveAgain=true;return false}
     cloudSaveInFlight=true;
-    const snapshot=clone(normalizeSafe(state));
+    let snapshot=clone(normalizeSafe(state));
     const sentStamp=snapshot._updatedAt||new Date().toISOString();
     snapshot._updatedAt=sentStamp;
     try{
+      if(typeof window.todoVaultFlushOutbox==='function'){
+        try{await window.todoVaultFlushOutbox()}catch{}
+      }
+      try{
+        const latest=await cloudRequest('load');
+        if(latest?.state)snapshot=protectSnapshotTodos(snapshot,latest.state);
+        snapshot._updatedAt=sentStamp;
+      }catch(e){console.warn('pre-save cloud check failed',e)}
+
       const data=await cloudRequest('save',{state:snapshot});
+      if(state?._updatedAt===sentStamp){
+        state.todos=clone(snapshot.todos);
+        state._deletedTodoIds=clone(snapshot._deletedTodoIds||[]);
+      }
       if(data?.updated_at)state._cloudUpdatedAt=data.updated_at;
       clearPendingIf(sentStamp);
       saveLocal();
@@ -159,21 +228,19 @@
   };
 
   function flushPendingSave(){
-    if(!CLOUD_READY||!currentCode())return;
-    // Backgrounding/closing is NOT a user edit. Only flush an already-dirty state.
-    if(!pendingStamp())return;
+    if(!currentCode()||!pendingStamp())return;
     clearTimeout(saveTimer);
     backupLocal('page-hide-pending');saveLocal();
-    const snapshot=clone(normalizeSafe(state));
-    const body=JSON.stringify({action:'save',code:currentCode(),state:snapshot});
-    try{
-      if(body.length<60000){fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},body,keepalive:true}).catch(()=>{})}
-      else saveCloud();
-    }catch{}
+    // Never send the whole planner blindly during pagehide. A stale device could
+    // overwrite newer todo statuses before the item-level preflight can run.
+    // The pending flag survives locally and the next visible/online sync calls
+    // saveCloud(), which performs the protected merge first.
+    try{if(typeof window.todoVaultFlushOutbox==='function')window.todoVaultFlushOutbox()}catch{}
   }
 
   window.plannerNormalizeSafe=normalizeSafe;
   window.plannerMergeStates=mergeStates;
+  window.plannerProtectSnapshotTodos=protectSnapshotTodos;
   window.plannerBackupLocal=backupLocal;
   window.plannerSyncPending=()=>Boolean(pendingStamp());
   window.plannerMarkSyncPending=()=>{if(state?._updatedAt)markPending(state._updatedAt)};
