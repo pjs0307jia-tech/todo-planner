@@ -43,193 +43,93 @@
     }
   }
 
-  // All devices: one click/tap selects the date; a quick second click/tap
-  // on the same date opens the day manager. We detect the double tap ourselves
-  // because mobile Safari does not always emit dblclick consistently.
   grid.addEventListener('click',e=>{
     const day=e.target.closest('.day');
     if(!day||!grid.contains(day))return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
     if(Date.now()<suppressClicksUntil)return;
-
-    const d=dateForDay(day);
-    if(!d)return;
-    const key=dateKey(d);
-    const now=Date.now();
+    const d=dateForDay(day);if(!d)return;
+    const key=dateKey(d),now=Date.now();
     const isDouble=lastTapKey===key&&(now-lastTapAt)<=380;
-
     if(isDouble){
-      clearTimeout(singleClickTimer);
-      singleClickTimer=null;
-      lastTapAt=0;
-      lastTapKey='';
-      selectCalendarDate(d,true);
-      return;
+      clearTimeout(singleClickTimer);singleClickTimer=null;lastTapAt=0;lastTapKey='';selectCalendarDate(d,true);return;
     }
-
-    clearTimeout(singleClickTimer);
-    lastTapAt=now;
-    lastTapKey=key;
+    clearTimeout(singleClickTimer);lastTapAt=now;lastTapKey=key;
     singleClickTimer=setTimeout(()=>{
-      singleClickTimer=null;
-      if(lastTapKey===key){lastTapAt=0;lastTapKey=''}
-      selectCalendarDate(d,false);
+      singleClickTimer=null;if(lastTapKey===key){lastTapAt=0;lastTapKey=''}selectCalendarDate(d,false);
     },300);
   },true);
 
-  // Desktop fallback for browsers that provide a native dblclick event.
   grid.addEventListener('dblclick',e=>{
     if(!isDesktop())return;
-    const day=e.target.closest('.day');
-    if(!day||!grid.contains(day))return;
-    e.preventDefault();
-    e.stopPropagation();
-    e.stopImmediatePropagation();
-    clearTimeout(singleClickTimer);
-    singleClickTimer=null;
-    lastTapAt=0;
-    lastTapKey='';
-    const d=dateForDay(day);
-    if(d)selectCalendarDate(d,true);
+    const day=e.target.closest('.day');if(!day||!grid.contains(day))return;
+    e.preventDefault();e.stopPropagation();e.stopImmediatePropagation();
+    clearTimeout(singleClickTimer);singleClickTimer=null;lastTapAt=0;lastTapKey='';
+    const d=dateForDay(day);if(d)selectCalendarDate(d,true);
   },true);
 
-  function clearDropTarget(){
-    if(activeDropDay)activeDropDay.classList.remove('todo-drop-target');
-    activeDropDay=null;
-  }
-
+  function clearDropTarget(){if(activeDropDay)activeDropDay.classList.remove('todo-drop-target');activeDropDay=null}
   function showMoveToast(d){
-    const toast=document.getElementById('toast');
-    if(!toast)return;
-    toast.textContent=`${d.getMonth()+1}월 ${d.getDate()}일로 옮겼어요`;
-    toast.classList.add('show');
-    clearTimeout(toastTimer);
-    toastTimer=setTimeout(()=>toast.classList.remove('show'),1500);
+    const toast=document.getElementById('toast');if(!toast)return;
+    toast.textContent=`${d.getMonth()+1}월 ${d.getDate()}일로 옮겼어요`;toast.classList.add('show');
+    clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.classList.remove('show'),1500);
   }
 
   function enhanceTodoDrag(){
-    const desktop=isDesktop();
-    const sourceDate=dateKey(selected);
-    const arr=modeTodos()[sourceDate]||[];
-    const items=[...todoList.querySelectorAll('.todo-item')];
-
+    const desktop=isDesktop(),sourceDate=dateKey(selected),arr=modeTodos()[sourceDate]||[],items=[...todoList.querySelectorAll('.todo-item')];
     items.forEach((el,index)=>{
-      const todo=arr[index];
-      if(!todo)return;
-      el.draggable=desktop;
-      el.dataset.todoId=String(todo.id);
-      el.dataset.todoDate=sourceDate;
-      el.dataset.todoMode=activeMode;
+      const todo=arr[index];if(!todo)return;
+      el.draggable=desktop;el.dataset.todoId=String(todo.id);el.dataset.todoDate=sourceDate;el.dataset.todoMode=activeMode;
       el.querySelectorAll('button').forEach(btn=>btn.draggable=false);
-
       if(!desktop)return;
       el.addEventListener('dragstart',e=>{
-        dragPayload={
-          id:String(todo.id),
-          sourceDate,
-          mode:activeMode
-        };
-        el.classList.add('todo-dragging');
+        dragPayload={id:String(todo.id),sourceDate,mode:activeMode};el.classList.add('todo-dragging');
         if(typeof closeDayManager==='function')closeDayManager();
-        if(e.dataTransfer){
-          e.dataTransfer.effectAllowed='move';
-          const raw=JSON.stringify(dragPayload);
-          try{e.dataTransfer.setData('application/x-todo-planner',raw)}catch{}
-          try{e.dataTransfer.setData('text/plain',raw)}catch{}
-        }
+        if(e.dataTransfer){e.dataTransfer.effectAllowed='move';const raw=JSON.stringify(dragPayload);try{e.dataTransfer.setData('application/x-todo-planner',raw)}catch{}try{e.dataTransfer.setData('text/plain',raw)}catch{}}
       });
-      el.addEventListener('dragend',()=>{
-        el.classList.remove('todo-dragging');
-        dragPayload=null;
-        clearDropTarget();
-      });
+      el.addEventListener('dragend',()=>{el.classList.remove('todo-dragging');dragPayload=null;clearDropTarget()});
     });
   }
 
   const originalRenderTodos=renderTodos;
-  renderTodos=function(){
-    originalRenderTodos();
-    enhanceTodoDrag();
-  };
+  renderTodos=function(){originalRenderTodos();enhanceTodoDrag()};
   enhanceTodoDrag();
 
   grid.addEventListener('dragover',e=>{
     if(!isDesktop()||!dragPayload)return;
-    const day=e.target.closest('.day');
-    if(!day||!grid.contains(day))return;
-    e.preventDefault();
-    if(e.dataTransfer)e.dataTransfer.dropEffect='move';
-    if(activeDropDay!==day){
-      clearDropTarget();
-      activeDropDay=day;
-      day.classList.add('todo-drop-target');
-    }
+    const day=e.target.closest('.day');if(!day||!grid.contains(day))return;
+    e.preventDefault();if(e.dataTransfer)e.dataTransfer.dropEffect='move';
+    if(activeDropDay!==day){clearDropTarget();activeDropDay=day;day.classList.add('todo-drop-target')}
   });
-
   grid.addEventListener('dragleave',e=>{
-    if(!activeDropDay)return;
-    const next=e.relatedTarget;
-    if(next&&activeDropDay.contains(next))return;
-    const day=e.target.closest('.day');
-    if(day===activeDropDay)clearDropTarget();
+    if(!activeDropDay)return;const next=e.relatedTarget;if(next&&activeDropDay.contains(next))return;
+    const day=e.target.closest('.day');if(day===activeDropDay)clearDropTarget();
   });
-
   grid.addEventListener('drop',e=>{
     if(!isDesktop()||!dragPayload)return;
-    const day=e.target.closest('.day');
-    if(!day||!grid.contains(day))return;
-    e.preventDefault();
-    e.stopPropagation();
-
-    const destination=dateForDay(day);
-    const payload={...dragPayload};
-    dragPayload=null;
-    clearDropTarget();
-    if(!destination)return;
-
-    const destinationKey=dateKey(destination);
-    if(destinationKey===payload.sourceDate)return;
-
-    const todoMaps=state.todos?.[payload.mode];
-    if(!todoMaps)return;
-    const source=todoMaps[payload.sourceDate]||[];
-    const index=source.findIndex(todo=>String(todo.id)===payload.id);
-    if(index<0)return;
-
-    const [todo]=source.splice(index,1);
-    if(!source.length)delete todoMaps[payload.sourceDate];
-    (todoMaps[destinationKey]??=[]).push(todo);
-
-    suppressClicksUntil=Date.now()+350;
-    selected=new Date(destination);
-    if(destination.getMonth()!==view.getMonth()||destination.getFullYear()!==view.getFullYear()){
-      view=new Date(destination.getFullYear(),destination.getMonth(),1);
-    }
-    queueSave();
-    renderAll();
-    showMoveToast(destination);
+    const day=e.target.closest('.day');if(!day||!grid.contains(day))return;
+    e.preventDefault();e.stopPropagation();
+    const destination=dateForDay(day),payload={...dragPayload};dragPayload=null;clearDropTarget();if(!destination)return;
+    const destinationKey=dateKey(destination);if(destinationKey===payload.sourceDate)return;
+    const todoMaps=state.todos?.[payload.mode];if(!todoMaps)return;
+    const source=todoMaps[payload.sourceDate]||[],index=source.findIndex(todo=>String(todo.id)===payload.id);if(index<0)return;
+    const [todo]=source.splice(index,1);if(!source.length)delete todoMaps[payload.sourceDate];(todoMaps[destinationKey]??=[]).push(todo);
+    todo._itemUpdatedAt=new Date().toISOString();
+    if(typeof window.todoMainAckEnqueueMove==='function')window.todoMainAckEnqueueMove(payload.mode,payload.sourceDate,destinationKey,todo);
+    if(typeof window.todoVaultEnqueueUpsert==='function')window.todoVaultEnqueueUpsert(payload.mode,destinationKey,todo,todo._itemUpdatedAt);
+    suppressClicksUntil=Date.now()+350;selected=new Date(destination);
+    if(destination.getMonth()!==view.getMonth()||destination.getFullYear()!==view.getFullYear())view=new Date(destination.getFullYear(),destination.getMonth(),1);
+    queueSave();renderAll();showMoveToast(destination);
   });
 
-  const style=document.createElement('style');
-  style.id='desktopInteractionStyles';
-  style.textContent=`
+  const style=document.createElement('style');style.id='desktopInteractionStyles';style.textContent=`
     @media (min-width:801px){
       .todo-item[draggable="true"]{cursor:grab;transition:opacity .15s ease,transform .15s ease,box-shadow .15s ease}
       .todo-item[draggable="true"]:active{cursor:grabbing}
       .todo-item.todo-dragging{opacity:.42;transform:scale(.985);box-shadow:none}
       #grid .day.todo-drop-target{background:var(--accent-soft)!important;outline:2px dashed var(--accent);outline-offset:-3px;box-shadow:inset 0 0 0 1px rgba(255,255,255,.72)}
     }
-  `;
-  document.head.appendChild(style);
+  `;document.head.appendChild(style);
 
-  window.addEventListener('resize',()=>{
-    clearTimeout(singleClickTimer);
-    singleClickTimer=null;
-    lastTapAt=0;
-    lastTapKey='';
-    clearDropTarget();
-    enhanceTodoDrag();
-  });
+  window.addEventListener('resize',()=>{clearTimeout(singleClickTimer);singleClickTimer=null;lastTapAt=0;lastTapKey='';clearDropTarget();enhanceTodoDrag()});
 })();

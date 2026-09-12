@@ -34,7 +34,8 @@
     const rows=Array.from(list.children).filter(el=>el.classList?.contains('todo-item'));
     const index=rows.indexOf(row);
     const key=typeof dateKey==='function'?dateKey(selected):'';
-    const bucket=state.todos?.[activeMode];
+    const mode=activeMode;
+    const bucket=state.todos?.[mode];
     const arr=key&&Array.isArray(bucket?.[key])?bucket[key]:null;
     const todo=index>=0&&arr?arr[index]:null;
     if(!todo?.id)return;
@@ -46,6 +47,7 @@
     const deletedId=String(todo.id);
     rememberDeleted(deletedId);
     deleteFromVault(deletedId);
+    if(typeof window.todoMainAckEnqueueDelete==='function')window.todoMainAckEnqueueDelete(deletedId);
     bucket[key]=arr.filter(item=>String(item?.id)!==deletedId);
     if(!bucket[key].length)delete bucket[key];
 
