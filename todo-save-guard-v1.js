@@ -12,6 +12,7 @@
     if(!todo?.id||!mode||!date)return false;
     const stamp=new Date().toISOString();
     todo._itemUpdatedAt=stamp;
+    if(typeof window.todoStatusLedgerRecord==='function')window.todoStatusLedgerRecord(mode,date,todo,stamp);
     try{if(typeof saveLocal==='function')saveLocal()}catch{}
     if(typeof window.todoVaultEnqueueUpsert==='function'){
       window.todoVaultEnqueueUpsert(mode,date,todo,stamp);
