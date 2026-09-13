@@ -36,8 +36,8 @@
         if(typeof saveLocal==='function')saveLocal();
         if(typeof window.plannerMarkSyncPending==='function')window.plannerMarkSyncPending();
         if(typeof saveCloud==='function')await saveCloud();
-        if(typeof window.todoVaultFlushOutbox==='function')window.todoVaultFlushOutbox();
-        if(typeof window.todoMainAckFlush==='function')window.todoMainAckFlush();
+        if(typeof window.todoVaultFlushOutbox==='function')await window.todoVaultFlushOutbox();
+        if(typeof window.todoMainAckFlush==='function')await window.todoMainAckFlush();
       }catch(e){console.warn('todo immediate save failed',e)}
     },35);
   }
@@ -60,9 +60,11 @@
     if(!check)return;
     const snap=modeDateSnapshot();
     const row=check.closest('.todo-item');
+    const stableId=String(check.dataset?.todoId||row?.dataset?.todoId||'');
     const rows=Array.from(document.querySelectorAll('#todoList .todo-item'));
     const index=rows.indexOf(row);
-    const id=index>=0?String(snap.arr[index]?.id||''):'';
+    const indexedId=index>=0?String(snap.arr[index]?.id||''):'';
+    const id=stableId||indexedId;
     setTimeout(()=>{
       if(!id)return;
       const arr=state?.todos?.[snap.mode]?.[snap.date];
@@ -71,6 +73,26 @@
     },0);
     forceTodoSave('todo-status');
   },true);
+
+  // Keep a stable ID directly on every rendered check button/card so reorder timing cannot misaddress writes.
+  const previousRenderTodos=typeof renderTodos==='function'?renderTodos:null;
+  if(previousRenderTodos){
+    renderTodos=function(){
+      const result=previousRenderTodos();
+      try{
+        const mode=typeof activeMode==='string'?activeMode:'job';
+        const date=typeof dateKey==='function'?dateKey(selected):'';
+        const arr=state?.todos?.[mode]?.[date];
+        const rows=Array.from(document.querySelectorAll('#todoList .todo-item'));
+        if(Array.isArray(arr))rows.forEach((row,i)=>{
+          const todo=arr[i];if(!todo?.id)return;
+          row.dataset.todoId=String(todo.id);
+          const check=row.querySelector('.check');if(check)check.dataset.todoId=String(todo.id);
+        });
+      }catch{}
+      return result;
+    };
+  }
 
   window.forceTodoCloudSave=forceTodoSave;
   window.persistTodoItemToVault=persistTodoItem;
