@@ -16,9 +16,11 @@
   function rolloverKey(mode,sourceKey,sourceId){return `${mode}|${sourceKey}|${sourceId}`}
   function rolloverId(mode,sourceKey,sourceId,textKey){const seed=sourceId||encodeURIComponent(textKey);return `rollover:${mode}:${sourceKey}:${seed}`}
   function existingRolloverKey(item){const r=item?.rolloverFrom;if(!r||!r.date||!r.id)return'';return rolloverKey(r.mode||'',String(r.date),String(r.id))}
+  function deletedTodoIds(){return new Set((Array.isArray(state?._deletedTodoIds)?state._deletedTodoIds:[]).map(String))}
 
   function processMode(mode,todayKey,created){
     const bucket=state.todos[mode]||(state.todos[mode]={});let changed=false;
+    const deleted=deletedTodoIds();
     Object.keys(bucket).sort().forEach(sourceKey=>{
       if(sourceKey>=todayKey)return;
       const targetKey=nextDateKey(sourceKey);if(!targetKey||targetKey>todayKey)return;
@@ -32,6 +34,9 @@
       postponed.forEach(todo=>{
         const sourceId=String(todo.id||''),text=String(todo.text||'').trim(),textKey=normalizeText(text);if(!textKey)return;
         const sourceRollKey=rolloverKey(mode,sourceKey,sourceId),deterministicId=rolloverId(mode,sourceKey,sourceId,textKey);
+        // 사용자가 이월된 항목을 직접 삭제했다면 같은 ID를 다시 만들지 않는다.
+        // 이 tombstone은 기기 간 동기화되어 오래된 PC/휴대폰 상태가 항목을 부활시키는 것도 막는다.
+        if(deleted.has(deterministicId))return;
         const alreadyExists=target.some(item=>existingRolloverKey(item)===sourceRollKey||String(item?.id||'')===deterministicId||normalizeText(item?.text)===textKey);
         if(alreadyExists)return;
         const nextTodo={id:deterministicId,text,done:false,status:'pending',rolloverFrom:{date:sourceKey,id:sourceId,mode}};
@@ -44,7 +49,7 @@
   function processPostponedTodos(force=false){
     if(running||!state?.todos||!userCode)return false;
     const now=new Date();now.setHours(0,0,0,0);const todayKey=localDateKey(now);
-    const stamp=`${todayKey}:${Object.keys(state.todos.job||{}).length}:${Object.keys(state.todos.work||{}).length}`;
+    const stamp=`${todayKey}:${Object.keys(state.todos.job||{}).length}:${Object.keys(state.todos.work||{}).length}:${(state._deletedTodoIds||[]).length}`;
     if(!force&&stamp===lastProcessedStamp)return false;
     running=true;let changed=false;const created=[];
     try{
