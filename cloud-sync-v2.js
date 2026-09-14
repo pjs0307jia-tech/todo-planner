@@ -85,10 +85,9 @@
 
   async function pullLatest(force=false){
     if(!CLOUD_READY||!userCode||pulling)return;
-    const now=Date.now();if(!force&&now-lastPull<8000)return;
+    const now=Date.now();if(!force&&now-lastPull<1500)return;
     lastPull=now;pulling=true;
     try{
-      // Never let a stuck local pending flag block cloud refresh forever.
       const pending=await flushPendingBestEffort();
 
       const raw=await cloudRequest('load');
@@ -97,10 +96,6 @@
 
       if(typeof window.plannerBackupLocal==='function')window.plannerBackupLocal('before-cloud-refresh');
 
-      // If a non-todo local edit still cannot be uploaded, preserve those local feature fields.
-      // Todos are different: the server copy wins same-ID conflicts, while truly local-only
-      // todo IDs are retained. Any real unsynced todo mutation is re-applied from the durable
-      // todo-main-ack queue immediately after this merge.
       let next=pending.plannerPending?merge(localSafe,cloudSafe):merge(cloudSafe,localSafe);
       const todoMerge=cloudFirstTodos(cloudSafe,localSafe);
       next.todos=todoMerge.todos;
@@ -118,7 +113,6 @@
       if(typeof renderAll==='function')renderAll();
       if(typeof setSyncStatus==='function')setSyncStatus((pending.todoPending||pending.plannerPending)?'local':'cloud');
 
-      // Keep retrying pending local mutations, but do not block future pulls while they retry.
       if(pending.todoPending&&typeof window.todoMainAckFlush==='function')setTimeout(()=>window.todoMainAckFlush(),450);
       if(pending.plannerPending&&typeof saveCloud==='function')setTimeout(()=>saveCloud(),650);
     }catch(e){
@@ -132,6 +126,6 @@
   window.addEventListener('focus',()=>setTimeout(()=>pullLatest(true),180));
   window.addEventListener('pageshow',()=>setTimeout(()=>pullLatest(true),220));
   window.addEventListener('online',()=>setTimeout(()=>pullLatest(true),220));
-  setInterval(()=>{if(document.visibilityState==='visible')pullLatest(false)},8000);
-  setTimeout(()=>pullLatest(true),700);
+  setInterval(()=>{if(document.visibilityState==='visible')pullLatest(false)},2000);
+  setTimeout(()=>pullLatest(true),500);
 })();
