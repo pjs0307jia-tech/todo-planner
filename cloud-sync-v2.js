@@ -2,7 +2,6 @@
   let pulling=false;
   let lastPull=0;
 
-  function clone(v){try{return JSON.parse(JSON.stringify(v))}catch{return v}}
   function safeState(raw){
     if(typeof window.plannerNormalizeSafe==='function')return window.plannerNormalizeSafe(raw);
     const src=raw&&typeof raw==='object'&&!Array.isArray(raw)?raw:{};
@@ -11,40 +10,6 @@
 
   function merge(primary,secondary){
     return typeof window.plannerMergeStates==='function'?window.plannerMergeStates(primary,secondary):safeState(primary);
-  }
-
-  function cloudFirstTodoDates(cloudDates={},localDates={},deleted=new Set()){
-    const out={};
-    const dates=new Set([...Object.keys(cloudDates||{}),...Object.keys(localDates||{})]);
-    dates.forEach(date=>{
-      const cloudArr=Array.isArray(cloudDates?.[date])?cloudDates[date]:[];
-      const localArr=Array.isArray(localDates?.[date])?localDates[date]:[];
-      const seen=new Set();
-      const arr=[];
-      cloudArr.forEach(item=>{
-        const id=String(item?.id||'');
-        if(!id||deleted.has(id)||seen.has(id))return;
-        seen.add(id);arr.push(clone(item));
-      });
-      localArr.forEach(item=>{
-        const id=String(item?.id||'');
-        if(!id||deleted.has(id)||seen.has(id))return;
-        seen.add(id);arr.push(clone(item));
-      });
-      if(arr.length)out[date]=arr;
-    });
-    return out;
-  }
-
-  function cloudFirstTodos(cloudSafe,localSafe){
-    const deleted=new Set([...(cloudSafe?._deletedTodoIds||[]),...(localSafe?._deletedTodoIds||[])].map(String));
-    return {
-      todos:{
-        job:cloudFirstTodoDates(cloudSafe?.todos?.job,localSafe?.todos?.job,deleted),
-        work:cloudFirstTodoDates(cloudSafe?.todos?.work,localSafe?.todos?.work,deleted)
-      },
-      deleted:Array.from(deleted).slice(-500)
-    };
   }
 
   function applyFeatureCopies(){
@@ -88,6 +53,7 @@
     const now=Date.now();if(!force&&now-lastPull<1500)return;
     lastPull=now;pulling=true;
     try{
+      // Apply and attempt to send local user mutations BEFORE reading cloud.
       const pending=await flushPendingBestEffort();
 
       const raw=await cloudRequest('load');
@@ -96,17 +62,26 @@
 
       if(typeof window.plannerBackupLocal==='function')window.plannerBackupLocal('before-cloud-refresh');
 
+      // IMPORTANT: never blindly prefer cloud for an existing todo ID.
+      // plannerMergeStates resolves each todo by its item mutation timestamp and
+      // the status ledger resolves status conflicts. While a local planner save is
+      // pending, local remains primary. Otherwise cloud is primary for fields that
+      // have no newer local item mutation.
       let next=pending.plannerPending?merge(localSafe,cloudSafe):merge(cloudSafe,localSafe);
-      const todoMerge=cloudFirstTodos(cloudSafe,localSafe);
-      next.todos=todoMerge.todos;
-      next._deletedTodoIds=todoMerge.deleted;
+
+      // Re-apply any item-level mutations that have not received server ACK yet.
+      if(pending.todoPending&&typeof window.todoMainAckApplyPending==='function'){
+        state=next;
+        window.todoMainAckApplyPending();
+        next=state;
+      }
+
+      // Status ledger is the final guard against an old pending value overwriting
+      // a newer done/postponed/skipped (or a newer intentional reset to pending).
+      if(typeof window.todoApplyStatusLedger==='function')next=window.todoApplyStatusLedger(next)||next;
       if(raw?.updated_at)next._cloudUpdatedAt=raw.updated_at;
 
       state=next;
-      if(pending.todoPending&&typeof window.todoMainAckApplyPending==='function'){
-        window.todoMainAckApplyPending();
-      }
-
       applyFeatureCopies();
       if(typeof processPostponedTodos==='function')processPostponedTodos(true);
       if(typeof saveLocal==='function')saveLocal();
