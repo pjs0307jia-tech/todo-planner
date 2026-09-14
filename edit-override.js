@@ -37,12 +37,46 @@ function startInlineEdit(target, currentText, onSave) {
   input.addEventListener('blur', () => finish(true));
 }
 
+function persistEditedTodo(mode, date, todo) {
+  if (!todo?.id || !mode || !date) return;
+
+  // Todo 전체 저장은 sync firewall에서 의도적으로 제외되므로
+  // 수정도 체크/추가와 동일하게 item 단위 저장 경로를 반드시 탄다.
+  if (typeof window.persistTodoItemToVault === 'function') {
+    window.persistTodoItemToVault(mode, date, todo);
+  } else {
+    const stamp = new Date().toISOString();
+    todo._itemUpdatedAt = stamp;
+    if (typeof window.todoStatusLedgerRecord === 'function') {
+      window.todoStatusLedgerRecord(mode, date, todo, stamp);
+    }
+    if (typeof window.todoVaultEnqueueUpsert === 'function') {
+      window.todoVaultEnqueueUpsert(mode, date, todo, stamp);
+    }
+    if (typeof window.todoMainAckEnqueueUpsert === 'function') {
+      window.todoMainAckEnqueueUpsert(mode, date, todo);
+    }
+  }
+
+  if (typeof saveLocal === 'function') saveLocal();
+  if (typeof queueSave === 'function') queueSave();
+  if (typeof window.todoVaultFlushOutbox === 'function') {
+    setTimeout(() => window.todoVaultFlushOutbox(), 20);
+  }
+  if (typeof window.todoMainAckFlush === 'function') {
+    setTimeout(() => window.todoMainAckFlush(), 30);
+  }
+}
+
 function attachTodoEditors() {
   const k = dateKey(selected);
   const arr = modeTodos()[k] || [];
   document.querySelectorAll('.todo-item').forEach((el, index) => {
     const tx = el.querySelector('.todo-text');
-    const todo = arr[index];
+    const stableId = String(el.dataset.todoId || '');
+    const todo = stableId
+      ? arr.find(item => String(item?.id || '') === stableId)
+      : arr[index];
     if (!tx || !todo) return;
     tx.classList.add('editable-text');
     tx.title = '클릭해서 수정';
@@ -52,7 +86,7 @@ function attachTodoEditors() {
       e.stopPropagation();
       startInlineEdit(tx, todo.text, next => {
         todo.text = next;
-        queueSave();
+        persistEditedTodo(activeMode, k, todo);
         renderAll();
       });
     };
