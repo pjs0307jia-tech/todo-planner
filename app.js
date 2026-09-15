@@ -40,7 +40,7 @@ function renderTodos(){
   const skipped=arr.filter(t=>todoStatus(t)==='skipped').length;
   const pending=arr.filter(t=>todoStatus(t)==='pending').length;
   const p=arr.length?Math.round(done/arr.length*100):0;
-  const weekday=['일','월','화','수','목','금','토'][selected.getDay()];$('dateTitle').textContent=`${selected.getMonth()+1}월 ${selected.getDate()}일 ${weekday}요일`;$('holidayName').textContent=holidayName(selected);$('modeLabel').textContent=activeMode==='job'?'취준 TO-DO':'업무 TO-DO';$('todoInput').placeholder=activeMode==='job'?'예: G마켓 자소서 2번 수정':'예: 오전 정산 파일 검수';$('ring').style.background=`conic-gradient(var(--good) ${p}%,#eee8eb ${p}%)`;$('pct').textContent=`${p}%`;
+  const weekday=['일','월','화','수','목','금','토'][selected.getDay()];$('dateTitle').textContent=`${selected.getMonth()+1}월 ${selected.getDate()}일 ${weekday}요일`;$('holidayName').textContent=holidayName(selected);$('modeLabel').textContent=activeMode==='job'?'취준 TO-DO':'업무 TO-DO';$('todoInput').placeholder=activeMode==='job'?'오늘 할 일을 적어보자!':'오늘 할 업무를 적어보자!';$('ring').style.background=`conic-gradient(var(--good) ${p}%,#eee8eb ${p}%)`;$('pct').textContent=`${p}%`;
   if(!arr.length){$('pTitle').textContent='아직 할 일이 없어요';$('pSub').textContent=activeMode==='job'?'필요한 것부터 하나씩.':'업무를 가볍게 정리해봐요.';list.innerHTML='<div class="empty">비어 있는 날도 괜찮아.<br>필요한 일만 살짝 얹어두자.</div>'}
   else{
     $('pTitle').textContent=done===arr.length?'오늘 할 일 끝!':pending>0?`${pending}개 남았어요`:'오늘 기록 완료';
