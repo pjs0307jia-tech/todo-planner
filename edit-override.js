@@ -25,6 +25,7 @@ function startInlineEdit(target, currentText, onSave) {
 
   input.addEventListener('click', e => e.stopPropagation());
   input.addEventListener('pointerdown', e => e.stopPropagation());
+  input.addEventListener('dblclick', e => e.stopPropagation());
   input.addEventListener('keydown', e => {
     if (e.key === 'Enter') {
       e.preventDefault();
@@ -34,7 +35,10 @@ function startInlineEdit(target, currentText, onSave) {
       finish(false);
     }
   });
-  input.addEventListener('blur', () => finish(true));
+
+  // 실수로 포커스가 빠졌을 때는 저장하지 않는다.
+  // 수정 완료는 Enter로 명시적으로 확정한다.
+  input.addEventListener('blur', () => finish(false));
 }
 
 function persistEditedTodo(mode, date, todo) {
@@ -79,10 +83,11 @@ function attachTodoEditors() {
       : arr[index];
     if (!tx || !todo) return;
     tx.classList.add('editable-text');
-    tx.title = '클릭해서 수정';
+    tx.title = '더블클릭해서 수정 · Enter 저장';
     tx.setAttribute('role', 'button');
     tx.setAttribute('tabindex', '0');
     const open = e => {
+      e.preventDefault();
       e.stopPropagation();
       startInlineEdit(tx, todo.text, next => {
         todo.text = next;
@@ -90,9 +95,9 @@ function attachTodoEditors() {
         renderAll();
       });
     };
-    tx.addEventListener('click', open);
+    tx.addEventListener('dblclick', open);
     tx.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
+      if (e.key === 'Enter') {
         e.preventDefault();
         open(e);
       }
@@ -108,10 +113,11 @@ function attachEventEditors() {
     const event = arr[index];
     if (!tx || !event) return;
     tx.classList.add('editable-text');
-    tx.title = '클릭해서 수정';
+    tx.title = '더블클릭해서 수정 · Enter 저장';
     tx.setAttribute('role', 'button');
     tx.setAttribute('tabindex', '0');
     const open = e => {
+      e.preventDefault();
       e.stopPropagation();
       startInlineEdit(tx, event.text, next => {
         event.text = next;
@@ -119,9 +125,9 @@ function attachEventEditors() {
         renderAll();
       });
     };
-    tx.addEventListener('click', open);
+    tx.addEventListener('dblclick', open);
     tx.addEventListener('keydown', e => {
-      if (e.key === 'Enter' || e.key === ' ') {
+      if (e.key === 'Enter') {
         e.preventDefault();
         open(e);
       }
