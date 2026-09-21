@@ -2,7 +2,28 @@
 .todo-text.editable-text:hover{background:var(--accent-soft);box-shadow:0 0 0 3px var(--accent-soft)}
 .event-item .editable-text{min-width:0;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .event-item .editable-text:hover{text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+
+.inline-edit-wrap{min-width:0;flex:1;width:100%;display:flex;align-items:center;gap:5px}
 .inline-edit-input{min-width:0;flex:1;width:100%;border:1px solid var(--accent);outline:none;background:#fff;color:var(--text);border-radius:8px;padding:5px 7px;font-size:inherit;line-height:1.35;box-shadow:0 0 0 3px var(--accent-shadow)}
-.event-item .inline-edit-input{padding:2px 5px;font-size:9.5px;min-width:90px}
+.inline-edit-input.invalid{border-color:#df748f;box-shadow:0 0 0 3px rgba(223,116,143,.16)}
+.inline-edit-save,.inline-edit-cancel{flex:0 0 auto;border:0;border-radius:8px;padding:6px 8px;font-size:9.5px;font-weight:800;line-height:1;white-space:nowrap}
+.inline-edit-save{background:var(--accent);color:#fff}
+.inline-edit-cancel{background:#f4eff1;color:#8d8187}
+
+.event-item .inline-edit-wrap{min-width:150px}
+.event-item .inline-edit-input{padding:3px 5px;font-size:9.5px;min-width:90px}
+.event-item .inline-edit-save,.event-item .inline-edit-cancel{padding:5px 6px;font-size:8.5px}
 .todo-item .inline-edit-input{font-size:11px}
-@media(max-width:540px){.editable-text{cursor:pointer}.inline-edit-input{font-size:16px!important}}
+
+/* 수정 중에는 드래그/삭제 버튼을 숨겨 입력 공간을 확보한다. */
+.todo-item.is-inline-editing .todo-reorder-handle,
+.todo-item.is-inline-editing .delete,
+.event-item.is-inline-editing > button:not(.inline-edit-save):not(.inline-edit-cancel){display:none!important}
+
+@media(max-width:540px){
+  .editable-text{cursor:pointer}
+  .inline-edit-input{font-size:16px!important}
+  .inline-edit-wrap{gap:4px}
+  .inline-edit-save,.inline-edit-cancel{padding:8px 7px;font-size:10px}
+  .todo-item.is-inline-editing{gap:6px}
+}
