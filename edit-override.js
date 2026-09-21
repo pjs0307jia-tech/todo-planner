@@ -1,6 +1,38 @@
+let inlineEditSession = null;
+
+function inlineEditActive() {
+  return Boolean(inlineEditSession);
+}
+
+window.todoInlineEditActive = inlineEditActive;
+
+const _renderAllInlineGuard = renderAll;
+renderAll = function() {
+  // 자동 동기화/주기적 렌더링이 수정창을 없애지 못하게 막는다.
+  if (inlineEditActive()) return;
+  return _renderAllInlineGuard.apply(this, arguments);
+};
+
+function scheduleCloudRefreshAfterEdit(delay) {
+  setTimeout(() => {
+    if (inlineEditActive()) return;
+    if (typeof window.todoPullLatest === 'function') {
+      window.todoPullLatest(true);
+    }
+  }, delay);
+}
+
 function startInlineEdit(target, currentText, onSave) {
-  if (!target || target.dataset.editing === 'true') return;
-  target.dataset.editing = 'true';
+  if (!target) return;
+
+  // 한 번에 하나만 수정한다. 이미 수정 중이면 기존 입력창으로 포커스를 돌린다.
+  if (inlineEditSession) {
+    inlineEditSession.input?.focus();
+    return;
+  }
+
+  const editor = document.createElement('div');
+  editor.className = 'inline-edit-wrap';
 
   const input = document.createElement('input');
   input.type = 'text';
@@ -8,37 +40,87 @@ function startInlineEdit(target, currentText, onSave) {
   input.value = currentText;
   input.maxLength = target.closest('.event-item') ? 42 : 80;
   input.setAttribute('aria-label', '내용 수정');
+  input.setAttribute('autocomplete', 'off');
+
+  const saveBtn = document.createElement('button');
+  saveBtn.type = 'button';
+  saveBtn.className = 'inline-edit-save';
+  saveBtn.textContent = '저장';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.type = 'button';
+  cancelBtn.className = 'inline-edit-cancel';
+  cancelBtn.textContent = '취소';
+
+  editor.append(input, saveBtn, cancelBtn);
 
   const parent = target.parentNode;
-  parent.replaceChild(input, target);
+  const row = target.closest('.todo-item, .event-item');
+  if (!parent) return;
+
+  row?.classList.add('is-inline-editing');
+  parent.replaceChild(editor, target);
+
+  inlineEditSession = { editor, input, row };
   input.focus();
   input.setSelectionRange(input.value.length, input.value.length);
 
   let finished = false;
   const finish = (save) => {
     if (finished) return;
-    finished = true;
+
     const next = input.value.trim();
-    if (save && next && next !== currentText) onSave(next);
-    else renderAll();
+    if (save && !next) {
+      input.classList.add('invalid');
+      input.focus();
+      return;
+    }
+
+    finished = true;
+    inlineEditSession = null;
+
+    try {
+      if (save && next !== currentText) onSave(next);
+    } finally {
+      // 저장/취소 버튼을 누른 뒤에만 수정창을 닫는다.
+      renderAll();
+      scheduleCloudRefreshAfterEdit(save ? 900 : 80);
+    }
   };
 
-  input.addEventListener('click', e => e.stopPropagation());
-  input.addEventListener('pointerdown', e => e.stopPropagation());
-  input.addEventListener('dblclick', e => e.stopPropagation());
+  const stop = e => e.stopPropagation();
+  editor.addEventListener('click', stop);
+  editor.addEventListener('pointerdown', stop);
+  editor.addEventListener('dblclick', stop);
+
+  input.addEventListener('input', () => input.classList.remove('invalid'));
   input.addEventListener('keydown', e => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      finish(true);
-    } else if (e.key === 'Escape') {
+    if (e.key === 'Escape') {
       e.preventDefault();
       finish(false);
+      return;
+    }
+
+    // Enter는 저장하지 않는다. 모바일 한글 입력/실수로 수정창이 닫히는 일을 막는다.
+    if (e.key === 'Enter') {
+      e.preventDefault();
     }
   });
 
-  // 실수로 포커스가 빠졌을 때는 저장하지 않는다.
-  // 수정 완료는 Enter로 명시적으로 확정한다.
-  input.addEventListener('blur', () => finish(false));
+  saveBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    finish(true);
+  });
+
+  cancelBtn.addEventListener('click', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    finish(false);
+  });
+
+  // blur에서는 아무것도 하지 않는다.
+  // 다른 곳을 잘못 눌러도 작성 중인 텍스트와 수정창을 그대로 유지한다.
 }
 
 function persistEditedTodo(mode, date, todo) {
@@ -75,26 +157,31 @@ function persistEditedTodo(mode, date, todo) {
 function attachTodoEditors() {
   const k = dateKey(selected);
   const arr = modeTodos()[k] || [];
+
   document.querySelectorAll('.todo-item').forEach((el, index) => {
     const tx = el.querySelector('.todo-text');
     const stableId = String(el.dataset.todoId || '');
     const todo = stableId
       ? arr.find(item => String(item?.id || '') === stableId)
       : arr[index];
+
     if (!tx || !todo) return;
+
     tx.classList.add('editable-text');
-    tx.title = '더블클릭해서 수정 · Enter 저장';
+    tx.title = '더블클릭해서 수정';
     tx.setAttribute('role', 'button');
     tx.setAttribute('tabindex', '0');
+
     const open = e => {
       e.preventDefault();
       e.stopPropagation();
+
       startInlineEdit(tx, todo.text, next => {
         todo.text = next;
         persistEditedTodo(activeMode, k, todo);
-        renderAll();
       });
     };
+
     tx.addEventListener('dblclick', open);
     tx.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
@@ -108,23 +195,27 @@ function attachTodoEditors() {
 function attachEventEditors() {
   const k = dateKey(selected);
   const arr = state.events[k] || [];
+
   document.querySelectorAll('.event-item').forEach((el, index) => {
     const tx = el.querySelector('span');
     const event = arr[index];
     if (!tx || !event) return;
+
     tx.classList.add('editable-text');
-    tx.title = '더블클릭해서 수정 · Enter 저장';
+    tx.title = '더블클릭해서 수정';
     tx.setAttribute('role', 'button');
     tx.setAttribute('tabindex', '0');
+
     const open = e => {
       e.preventDefault();
       e.stopPropagation();
+
       startInlineEdit(tx, event.text, next => {
         event.text = next;
         queueSave();
-        renderAll();
       });
     };
+
     tx.addEventListener('dblclick', open);
     tx.addEventListener('keydown', e => {
       if (e.key === 'Enter') {
