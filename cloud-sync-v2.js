@@ -48,7 +48,14 @@
     return {todoPending,plannerPending};
   }
 
+  function inlineEditing(){
+    try{return typeof window.todoInlineEditActive==='function'&&window.todoInlineEditActive()}catch{return false}
+  }
+
   async function pullLatest(force=false){
+    // 수정 중에는 cloud pull 자체를 미룬다.
+    // 주기 동기화가 state를 갈아끼워 입력 중인 todo 참조를 끊는 문제를 막는다.
+    if(inlineEditing())return;
     if(!CLOUD_READY||!userCode||pulling)return;
     const now=Date.now();if(!force&&now-lastPull<1500)return;
     lastPull=now;pulling=true;
@@ -57,6 +64,8 @@
       const pending=await flushPendingBestEffort();
 
       const raw=await cloudRequest('load');
+      // pull 요청 직후 사용자가 수정을 시작했을 수도 있으므로 적용 직전 한 번 더 확인한다.
+      if(inlineEditing())return;
       const cloud=raw?.state;if(!cloud||typeof cloud!=='object')return;
       const cloudSafe=safeState(cloud),localSafe=safeState(state);
 
