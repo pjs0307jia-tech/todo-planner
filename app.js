@@ -52,14 +52,36 @@ function renderTodos(){
       c.textContent=status==='done'?'✓':status==='postponed'?'→':status==='skipped'?'×':'';
       c.title=status==='pending'?'미완료 · 클릭하면 완료':status==='done'?'완료 · 클릭하면 미루기':status==='postponed'?'미루기 · 클릭하면 안함':'안함 · 클릭하면 미완료로 초기화';
       c.setAttribute('aria-label',c.title);
-      c.onclick=()=>{cycleTodoStatus(t);queueSave();renderAll()};
+      c.onclick=()=>{cycleTodoStatus(t);const stamp=stampTodoMutation(t);syncTodoUpsert(activeMode,k,t,stamp);queueSave();renderAll()};
       const tx=document.createElement('div');tx.className='todo-text';tx.textContent=t.text;
-      const x=document.createElement('button');x.type='button';x.className='delete';x.textContent='×';x.onclick=()=>{modeTodos()[k]=arr.filter(a=>a.id!==t.id);if(!modeTodos()[k].length)delete modeTodos()[k];queueSave();renderAll()};el.append(c,tx,x);list.append(el)
+      const x=document.createElement('button');x.type='button';x.className='delete';x.textContent='×';x.onclick=()=>{const stamp=new Date().toISOString();syncTodoDelete(t.id,stamp);const tomb=new Set((state._deletedTodoIds||[]).map(String));tomb.add(String(t.id));state._deletedTodoIds=Array.from(tomb).slice(-500);modeTodos()[k]=arr.filter(a=>a.id!==t.id);if(!modeTodos()[k].length)delete modeTodos()[k];queueSave();renderAll()};el.append(c,tx,x);list.append(el)
     })
   }
   renderRating()
 }
-function addTodo(text){text=text.trim();if(!text)return;const k=dateKey(selected);(modeTodos()[k]??=[]).push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),text,done:false,status:'pending'});$('todoInput').value='';queueSave();renderAll()}
+function stampTodoMutation(todo){const stamp=new Date().toISOString();if(todo&&typeof todo==='object')todo._itemUpdatedAt=stamp;return stamp}
+function syncTodoUpsert(mode,date,todo,stamp){
+  if(!todo?.id||!mode||!date)return;
+  const mutationAt=stamp||stampTodoMutation(todo);
+  try{if(typeof window.todoStatusLedgerRecord==='function')window.todoStatusLedgerRecord(mode,date,todo,mutationAt)}catch{}
+  let queued=false;
+  try{if(typeof window.todoVaultEnqueueUpsert==='function'){window.todoVaultEnqueueUpsert(mode,date,todo,mutationAt);queued=true}}catch{}
+  try{if(typeof window.todoMainAckEnqueueUpsert==='function'){window.todoMainAckEnqueueUpsert(mode,date,todo);queued=true}}catch{}
+  if(!queued&&CLOUD_READY&&userCode){
+    cloudRequest('todo_upsert',{mode,date,todo:JSON.parse(JSON.stringify(todo)),client_updated_at:mutationAt}).catch(e=>console.warn('todo direct upsert failed',e));
+  }
+}
+function syncTodoDelete(todoId,stamp){
+  if(!todoId)return;
+  const mutationAt=stamp||new Date().toISOString();
+  let queued=false;
+  try{if(typeof window.todoVaultEnqueueDelete==='function'){window.todoVaultEnqueueDelete(String(todoId),mutationAt);queued=true}}catch{}
+  try{if(typeof window.todoMainAckEnqueueDelete==='function'){window.todoMainAckEnqueueDelete(String(todoId));queued=true}}catch{}
+  if(!queued&&CLOUD_READY&&userCode){
+    cloudRequest('todo_delete',{todo_id:String(todoId),client_updated_at:mutationAt}).catch(e=>console.warn('todo direct delete failed',e));
+  }
+}
+function addTodo(text){text=text.trim();if(!text)return;const k=dateKey(selected);const todo={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),text,done:false,status:'pending'};const stamp=stampTodoMutation(todo);(modeTodos()[k]??=[]).push(todo);syncTodoUpsert(activeMode,k,todo,stamp);$('todoInput').value='';queueSave();renderAll()}
 function switchMode(mode){activeMode=mode;document.body.dataset.mode=mode;document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));renderAll()}
 function renderAll(){renderCalendar();renderEvents();renderTodos();renderPalette();$('idText').textContent=`ID ${userCode}`;setSyncStatus(CLOUD_READY?'cloud':'local')}
 async function openPlanner(code){userCode=code.trim();if(!userCode)return;localStorage.setItem('todoPlanner_activeCode',userCode);state=loadLocal();if(CLOUD_READY){const cloud=await loadCloud();if(cloud)state=normalize(cloud);else await saveCloud();saveLocal()}$('loginOverlay').classList.remove('show');renderAll()}
