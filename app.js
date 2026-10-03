@@ -84,6 +84,42 @@ function syncTodoDelete(todoId,stamp){
 function addTodo(text){text=text.trim();if(!text)return;const k=dateKey(selected);const todo={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),text,done:false,status:'pending'};const stamp=stampTodoMutation(todo);(modeTodos()[k]??=[]).push(todo);syncTodoUpsert(activeMode,k,todo,stamp);$('todoInput').value='';queueSave();renderAll()}
 function switchMode(mode){activeMode=mode;document.body.dataset.mode=mode;document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));renderAll()}
 function renderAll(){renderCalendar();renderEvents();renderTodos();renderPalette();$('idText').textContent=`ID ${userCode}`;setSyncStatus(CLOUD_READY?'cloud':'local')}
-async function openPlanner(code){userCode=code.trim();if(!userCode)return;localStorage.setItem('todoPlanner_activeCode',userCode);state=loadLocal();if(CLOUD_READY){const cloud=await loadCloud();if(cloud)state=normalize(cloud);else await saveCloud();saveLocal()}$('loginOverlay').classList.remove('show');renderAll()}
+function mergeBootLocalTodos(cloud,local){
+  const next=normalize(cloud);
+  const deleted=new Set((cloud?._deletedTodoIds||[]).map(String));
+  const known=new Set();
+  ['job','work'].forEach(mode=>Object.values(cloud?.todos?.[mode]||{}).forEach(arr=>{
+    if(Array.isArray(arr))arr.forEach(item=>{if(item?.id)known.add(String(item.id))});
+  }));
+  const rescued=[];
+  ['job','work'].forEach(mode=>Object.entries(local?.todos?.[mode]||{}).forEach(([date,arr])=>{
+    if(!Array.isArray(arr))return;
+    arr.forEach(item=>{
+      const id=String(item?.id||'');
+      if(!id||known.has(id)||deleted.has(id))return;
+      const copy=JSON.parse(JSON.stringify(item));
+      const stamp=stampTodoMutation(copy);
+      (next.todos[mode][date]??=[]).push(copy);
+      known.add(id);
+      rescued.push({mode,date,todo:copy,stamp});
+    });
+  }));
+  return {next,rescued};
+}
+async function openPlanner(code){
+  userCode=code.trim();if(!userCode)return;
+  localStorage.setItem('todoPlanner_activeCode',userCode);
+  const local=loadLocal();state=local;
+  if(CLOUD_READY){
+    const cloud=await loadCloud();
+    if(cloud){
+      const merged=mergeBootLocalTodos(cloud,local);
+      state=merged.next;
+      merged.rescued.forEach(x=>syncTodoUpsert(x.mode,x.date,x.todo,x.stamp));
+    }else await saveCloud();
+    saveLocal();
+  }
+  $('loginOverlay').classList.remove('show');renderAll();
+}
 function showLogin(){$('codeInput').value=userCode||localStorage.getItem('todoPlanner_activeCode')||'0307';$('loginOverlay').classList.add('show');setTimeout(()=>$('codeInput').focus(),50)}
 $('todoForm').onsubmit=e=>{e.preventDefault();addTodo($('todoInput').value)};$('eventForm').onsubmit=e=>{e.preventDefault();addEvent($('eventInput').value)};$('prev').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);renderCalendar()};$('next').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);renderCalendar()};$('todayBtn').onclick=()=>{selected=new Date(today);view=new Date(today.getFullYear(),today.getMonth(),1);renderAll()};$('idBtn').onclick=showLogin;document.querySelectorAll('.mode-btn').forEach(b=>b.onclick=()=>switchMode(b.dataset.mode));$('codeForm').onsubmit=e=>{e.preventDefault();openPlanner($('codeInput').value)};const savedCode=localStorage.getItem('todoPlanner_activeCode');if(savedCode)openPlanner(savedCode);else showLogin();
