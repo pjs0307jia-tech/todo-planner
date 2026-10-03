@@ -4,6 +4,14 @@
   let switching=false;
 
   function currentBuild(){return document.querySelector(`meta[name="${META}"]`)?.content||''}
+  function assetFingerprint(root=document){
+    try{
+      return Array.from(root.querySelectorAll('script[src],link[rel="stylesheet"][href]'))
+        .map(el=>el.getAttribute('src')||el.getAttribute('href')||'')
+        .filter(Boolean)
+        .join('|');
+    }catch{return ''}
+  }
   function hasPending(){
     try{
       if(typeof window.todoMainAckPending==='function'&&window.todoMainAckPending())return true;
@@ -23,9 +31,12 @@
       const res=await fetch(`./index.html?build_check=${Date.now()}`,{cache:'no-store'});
       if(!res.ok)return;
       const html=await res.text();
-      const m=html.match(/<meta\s+name=["']app-build["']\s+content=["']([^"']+)["']/i);
-      const latest=m?.[1]||'';
-      if(!latest||latest===currentBuild())return;
+      const parsed=new DOMParser().parseFromString(html,'text/html');
+      const latest=parsed.querySelector(`meta[name="${META}"]`)?.content||'';
+      const latestAssets=assetFingerprint(parsed);
+      const buildChanged=Boolean(latest&&latest!==currentBuild());
+      const assetsChanged=Boolean(latestAssets&&latestAssets!==assetFingerprint(document));
+      if(!buildChanged&&!assetsChanged)return;
       switching=true;
       await flushPending();
       if(hasPending()){
@@ -33,7 +44,8 @@
         setTimeout(check,2500);
         return;
       }
-      location.replace(`${location.pathname}?build=${encodeURIComponent(latest)}${location.hash||''}`);
+      const token=latest||String(Date.now());
+      location.replace(`${location.pathname}?build=${encodeURIComponent(token)}&asset_refresh=${Date.now()}${location.hash||''}`);
     }catch{}
   }
 
