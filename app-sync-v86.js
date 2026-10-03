@@ -1,0 +1,125 @@
+const SUPABASE_URL='https://empbjojdpmeaottpesdt.supabase.co';
+const SUPABASE_ANON_KEY='sb_publishable_Af6LxJzQGT8Emahn-B30DA_IjC7hy0g';
+const CLOUD_READY=Boolean(SUPABASE_URL&&SUPABASE_ANON_KEY);
+const COLORS=[{id:'pink',hex:'#ffdbe5'},{id:'peach',hex:'#ffe2cc'},{id:'yellow',hex:'#fff0bd'},{id:'mint',hex:'#dff2e7'},{id:'lilac',hex:'#e7e0fb'}];
+const HOLIDAYS={'2026-01-01':'신정','2026-02-16':'설날 연휴','2026-02-17':'설날','2026-02-18':'설날 연휴','2026-03-01':'삼일절','2026-03-02':'삼일절 대체공휴일','2026-05-05':'어린이날','2026-05-24':'부처님오신날','2026-05-25':'부처님오신날 대체공휴일','2026-06-03':'지방선거일','2026-06-06':'현충일','2026-08-15':'광복절','2026-08-17':'광복절 대체공휴일','2026-09-24':'추석 연휴','2026-09-25':'추석','2026-09-26':'추석 연휴','2026-10-03':'개천절','2026-10-05':'개천절 대체공휴일','2026-10-09':'한글날','2026-12-25':'크리스마스','2027-01-01':'신정','2027-02-07':'설날','2027-02-08':'설날 연휴','2027-02-09':'설날 대체공휴일','2027-03-01':'삼일절','2027-05-05':'어린이날','2027-05-13':'부처님오신날','2027-06-06':'현충일','2027-08-15':'광복절','2027-08-16':'광복절 대체공휴일','2027-09-14':'추석 연휴','2027-09-15':'추석','2027-09-16':'추석 연휴','2027-10-03':'개천절','2027-10-04':'개천절 대체공휴일','2027-10-09':'한글날','2027-10-11':'한글날 대체공휴일','2027-12-25':'크리스마스','2027-12-27':'크리스마스 대체공휴일'};
+const today=new Date();today.setHours(0,0,0,0);
+let view=new Date(today.getFullYear(),today.getMonth(),1),selected=new Date(today),activeMode='job',activeColor='pink',userCode='';let state=emptyState(),saveTimer=null;const $=id=>document.getElementById(id);
+function emptyState(){return{version:3,todos:{job:{},work:{}},moods:{job:{},work:{}},events:{}}}
+function dateKey(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`}
+function sameDate(a,b){return dateKey(a)===dateKey(b)}function storageKey(){return`todoPlanner_v3_${userCode||'guest'}`}
+function normalize(raw){if(!raw||typeof raw!=='object')return emptyState();return{version:3,todos:{job:raw.todos?.job||{},work:raw.todos?.work||{}},moods:{job:raw.moods?.job||{},work:raw.moods?.work||{}},events:raw.events||{}}}
+function loadLocal(){try{return normalize(JSON.parse(localStorage.getItem(storageKey())))}catch{return emptyState()}}function saveLocal(){localStorage.setItem(storageKey(),JSON.stringify(state))}
+async function cloudRequest(action,extra={}){if(!CLOUD_READY)return null;const res=await fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},body:JSON.stringify({action,code:userCode,...extra})});if(!res.ok)throw new Error(await res.text());return await res.json()}
+async function loadCloud(){if(!CLOUD_READY)return null;try{const data=await cloudRequest('load');return data?.state||null}catch(e){console.warn(e);setSyncStatus('local');return null}}
+async function saveCloud(){if(!CLOUD_READY)return;try{await cloudRequest('save',{state});setSyncStatus('cloud')}catch(e){console.warn(e);setSyncStatus('local')}}
+function queueSave(){saveLocal();if(CLOUD_READY){clearTimeout(saveTimer);saveTimer=setTimeout(saveCloud,350)}setSyncStatus(CLOUD_READY?'cloud':'local')}
+function setSyncStatus(kind){$('syncDot').className=`sync-dot ${kind}`;$('storageNote').textContent=kind==='cloud'?`ID ${userCode} · Supabase에 동기화돼요.`:`ID ${userCode} · 현재 이 기기에 저장돼요.`}
+function holidayName(d){return HOLIDAYS[dateKey(d)]||''}function modeTodos(){return state.todos[activeMode]}function modeMoods(){return state.moods[activeMode]}
+function todoStatus(todo){
+  if(todo?.status==='done'||todo?.status==='postponed'||todo?.status==='skipped')return todo.status;
+  return todo?.done?'done':'pending';
+}
+function setTodoStatus(todo,status){todo.status=status;todo.done=status==='done'}
+function cycleTodoStatus(todo){
+  const order=['pending','done','postponed','skipped'];
+  const current=todoStatus(todo),next=order[(order.indexOf(current)+1)%order.length];
+  setTodoStatus(todo,next);
+}
+function isTodoDone(todo){return todoStatus(todo)==='done'}
+function renderPalette(){const p=$('palette');p.innerHTML='';COLORS.forEach(c=>{const b=document.createElement('button');b.type='button';b.className='color-btn'+(c.id===activeColor?' on':'');b.style.background=c.hex;b.onclick=()=>{activeColor=c.id;renderPalette()};p.append(b)})}
+function colorHex(id){return COLORS.find(x=>x.id===id)?.hex||COLORS[0].hex}
+function renderCalendar(){const grid=$('grid');grid.innerHTML='';const y=view.getFullYear(),m=view.getMonth();$('monthTitle').textContent=`${y}년 ${m+1}월`;let total=0,done=0;Object.entries(modeTodos()).forEach(([k,a])=>{const d=new Date(k+'T00:00:00');if(d.getFullYear()===y&&d.getMonth()===m){total+=a.length;done+=a.filter(isTodoDone).length}});$('monthStats').textContent=total?`${done}/${total} 완료`:activeMode==='job'?'취준 기록':'업무 기록';const first=new Date(y,m,1),start=new Date(y,m,1-first.getDay()),daysInMonth=new Date(y,m+1,0).getDate(),cells=Math.ceil((first.getDay()+daysInMonth)/7)*7;for(let i=0;i<cells;i++){const d=new Date(start);d.setDate(start.getDate()+i);const k=dateKey(d),events=state.events[k]||[],mood=modeMoods()[k]||0;const b=document.createElement('button');b.type='button';b.className='day';if(d.getMonth()!==m)b.classList.add('outside');if(sameDate(d,selected))b.classList.add('selected');if(sameDate(d,today))b.classList.add('today-day');if(d.getDay()===0)b.classList.add('sunday');if(d.getDay()===6)b.classList.add('saturday');if(holidayName(d))b.classList.add('holiday');const top=document.createElement('div');top.className='topline';top.innerHTML=`<span class="num">${d.getDate()}</span>`;b.append(top);if(events.length){const stack=document.createElement('div');stack.className='event-stack';events.slice(0,2).forEach(ev=>{const chip=document.createElement('span');chip.className='event-chip';chip.style.background=colorHex(ev.color);chip.textContent=ev.text;stack.append(chip)});if(events.length>2){const more=document.createElement('span');more.className='event-more';more.textContent=`+${events.length-2}`;stack.append(more)}b.append(stack)}if(mood){const mini=document.createElement('div');mini.className=`mood-mini ${activeMode}`;for(let n=1;n<=5;n++){const s=document.createElement('span');s.className=n<=mood?'on':'off';s.textContent=activeMode==='job'?(n<=mood?'♥':'♡'):(n<=mood?'●':'○');mini.append(s)}b.append(mini)}b.onclick=()=>{selected=new Date(d);if(d.getMonth()!==view.getMonth()||d.getFullYear()!==view.getFullYear())view=new Date(d.getFullYear(),d.getMonth(),1);renderAll()};grid.append(b)}}
+function renderEvents(){const k=dateKey(selected),arr=state.events[k]||[],box=$('eventList');box.innerHTML='';arr.forEach(ev=>{const el=document.createElement('div');el.className='event-item';el.style.background=colorHex(ev.color);const t=document.createElement('span');t.textContent=ev.text;const x=document.createElement('button');x.type='button';x.textContent='×';x.onclick=()=>{state.events[k]=arr.filter(a=>a.id!==ev.id);if(!state.events[k].length)delete state.events[k];queueSave();renderAll()};el.append(t,x);box.append(el)})}
+function addEvent(text){text=text.trim();if(!text)return;const k=dateKey(selected);(state.events[k]??=[]).push({id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),text,color:activeColor});$('eventInput').value='';queueSave();renderAll()}
+function renderRating(){const rating=$('rating');rating.innerHTML='';const score=modeMoods()[dateKey(selected)]||0;for(let n=1;n<=5;n++){const b=document.createElement('button');b.type='button';b.className=`rate-btn${n<=score?` on ${activeMode}`:''}`;b.textContent=activeMode==='job'?(n<=score?'♥':'♡'):(n<=score?'●':'○');b.onclick=()=>{const k=dateKey(selected);if(modeMoods()[k]===n)delete modeMoods()[k];else modeMoods()[k]=n;queueSave();renderAll()};rating.append(b)}$('moodCaption').textContent=score?`${score}/5`:'가볍게 기록해요';$('moodTitle').textContent=activeMode==='job'?'오늘 만족도':'업무 만족도'}
+function renderTodos(){
+  const k=dateKey(selected),arr=modeTodos()[k]||[],list=$('todoList');
+  const done=arr.filter(t=>todoStatus(t)==='done').length;
+  const postponed=arr.filter(t=>todoStatus(t)==='postponed').length;
+  const skipped=arr.filter(t=>todoStatus(t)==='skipped').length;
+  const pending=arr.filter(t=>todoStatus(t)==='pending').length;
+  const p=arr.length?Math.round(done/arr.length*100):0;
+  const weekday=['일','월','화','수','목','금','토'][selected.getDay()];$('dateTitle').textContent=`${selected.getMonth()+1}월 ${selected.getDate()}일 ${weekday}요일`;$('holidayName').textContent=holidayName(selected);$('modeLabel').textContent=activeMode==='job'?'취준 TO-DO':'업무 TO-DO';$('todoInput').placeholder=activeMode==='job'?'오늘 할 일을 적어보자!':'오늘 할 업무를 적어보자!';$('ring').style.background=`conic-gradient(var(--good) ${p}%,#eee8eb ${p}%)`;$('pct').textContent=`${p}%`;
+  if(!arr.length){$('pTitle').textContent='아직 할 일이 없어요';$('pSub').textContent=activeMode==='job'?'필요한 것부터 하나씩.':'업무를 가볍게 정리해봐요.';list.innerHTML='<div class="empty">비어 있는 날도 괜찮아.<br>필요한 일만 살짝 얹어두자.</div>'}
+  else{
+    $('pTitle').textContent=done===arr.length?'오늘 할 일 끝!':pending>0?`${pending}개 남았어요`:'오늘 기록 완료';
+    const parts=[`${done}개 완료`];if(postponed)parts.push(`${postponed}개 미룸`);if(skipped)parts.push(`${skipped}개 안함`);if(pending&&postponed+skipped)parts.push(`${pending}개 미완료`);$('pSub').textContent=parts.join(' · ');
+    list.innerHTML='';arr.forEach(t=>{
+      const status=todoStatus(t);
+      const el=document.createElement('div');el.className=`todo-item ${status}`;
+      const c=document.createElement('button');c.type='button';c.className=`check ${status}`;
+      c.textContent=status==='done'?'✓':status==='postponed'?'→':status==='skipped'?'×':'';
+      c.title=status==='pending'?'미완료 · 클릭하면 완료':status==='done'?'완료 · 클릭하면 미루기':status==='postponed'?'미루기 · 클릭하면 안함':'안함 · 클릭하면 미완료로 초기화';
+      c.setAttribute('aria-label',c.title);
+      c.onclick=()=>{cycleTodoStatus(t);const stamp=stampTodoMutation(t);syncTodoUpsert(activeMode,k,t,stamp);queueSave();renderAll()};
+      const tx=document.createElement('div');tx.className='todo-text';tx.textContent=t.text;
+      const x=document.createElement('button');x.type='button';x.className='delete';x.textContent='×';x.onclick=()=>{const stamp=new Date().toISOString();syncTodoDelete(t.id,stamp);const tomb=new Set((state._deletedTodoIds||[]).map(String));tomb.add(String(t.id));state._deletedTodoIds=Array.from(tomb).slice(-500);modeTodos()[k]=arr.filter(a=>a.id!==t.id);if(!modeTodos()[k].length)delete modeTodos()[k];queueSave();renderAll()};el.append(c,tx,x);list.append(el)
+    })
+  }
+  renderRating()
+}
+function stampTodoMutation(todo){const stamp=new Date().toISOString();if(todo&&typeof todo==='object')todo._itemUpdatedAt=stamp;return stamp}
+function syncTodoUpsert(mode,date,todo,stamp){
+  if(!todo?.id||!mode||!date)return;
+  const mutationAt=stamp||stampTodoMutation(todo);
+  try{if(typeof window.todoStatusLedgerRecord==='function')window.todoStatusLedgerRecord(mode,date,todo,mutationAt)}catch{}
+  let queued=false;
+  try{if(typeof window.todoVaultEnqueueUpsert==='function'){window.todoVaultEnqueueUpsert(mode,date,todo,mutationAt);queued=true}}catch{}
+  try{if(typeof window.todoMainAckEnqueueUpsert==='function'){window.todoMainAckEnqueueUpsert(mode,date,todo);queued=true}}catch{}
+  if(!queued&&CLOUD_READY&&userCode){
+    cloudRequest('todo_upsert',{mode,date,todo:JSON.parse(JSON.stringify(todo)),client_updated_at:mutationAt}).catch(e=>console.warn('todo direct upsert failed',e));
+  }
+}
+function syncTodoDelete(todoId,stamp){
+  if(!todoId)return;
+  const mutationAt=stamp||new Date().toISOString();
+  let queued=false;
+  try{if(typeof window.todoVaultEnqueueDelete==='function'){window.todoVaultEnqueueDelete(String(todoId),mutationAt);queued=true}}catch{}
+  try{if(typeof window.todoMainAckEnqueueDelete==='function'){window.todoMainAckEnqueueDelete(String(todoId));queued=true}}catch{}
+  if(!queued&&CLOUD_READY&&userCode){
+    cloudRequest('todo_delete',{todo_id:String(todoId),client_updated_at:mutationAt}).catch(e=>console.warn('todo direct delete failed',e));
+  }
+}
+function addTodo(text){text=text.trim();if(!text)return;const k=dateKey(selected);const todo={id:crypto.randomUUID?crypto.randomUUID():String(Date.now()+Math.random()),text,done:false,status:'pending'};const stamp=stampTodoMutation(todo);(modeTodos()[k]??=[]).push(todo);syncTodoUpsert(activeMode,k,todo,stamp);$('todoInput').value='';queueSave();renderAll()}
+function switchMode(mode){activeMode=mode;document.body.dataset.mode=mode;document.querySelectorAll('.mode-btn').forEach(b=>b.classList.toggle('on',b.dataset.mode===mode));renderAll()}
+function renderAll(){renderCalendar();renderEvents();renderTodos();renderPalette();$('idText').textContent=`ID ${userCode}`;setSyncStatus(CLOUD_READY?'cloud':'local')}
+function mergeBootLocalTodos(cloud,local){
+  const next=normalize(cloud);
+  const deleted=new Set((cloud?._deletedTodoIds||[]).map(String));
+  const known=new Set();
+  ['job','work'].forEach(mode=>Object.values(cloud?.todos?.[mode]||{}).forEach(arr=>{
+    if(Array.isArray(arr))arr.forEach(item=>{if(item?.id)known.add(String(item.id))});
+  }));
+  const rescued=[];
+  ['job','work'].forEach(mode=>Object.entries(local?.todos?.[mode]||{}).forEach(([date,arr])=>{
+    if(!Array.isArray(arr))return;
+    arr.forEach(item=>{
+      const id=String(item?.id||'');
+      if(!id||known.has(id)||deleted.has(id))return;
+      const copy=JSON.parse(JSON.stringify(item));
+      const stamp=stampTodoMutation(copy);
+      (next.todos[mode][date]??=[]).push(copy);
+      known.add(id);
+      rescued.push({mode,date,todo:copy,stamp});
+    });
+  }));
+  return {next,rescued};
+}
+async function openPlanner(code){
+  userCode=code.trim();if(!userCode)return;
+  localStorage.setItem('todoPlanner_activeCode',userCode);
+  const local=loadLocal();state=local;
+  if(CLOUD_READY){
+    const cloud=await loadCloud();
+    if(cloud){
+      const merged=mergeBootLocalTodos(cloud,local);
+      state=merged.next;
+      merged.rescued.forEach(x=>syncTodoUpsert(x.mode,x.date,x.todo,x.stamp));
+    }else await saveCloud();
+    saveLocal();
+  }
+  $('loginOverlay').classList.remove('show');renderAll();
+}
+function showLogin(){$('codeInput').value=userCode||localStorage.getItem('todoPlanner_activeCode')||'0307';$('loginOverlay').classList.add('show');setTimeout(()=>$('codeInput').focus(),50)}
+$('todoForm').onsubmit=e=>{e.preventDefault();addTodo($('todoInput').value)};$('eventForm').onsubmit=e=>{e.preventDefault();addEvent($('eventInput').value)};$('prev').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);renderCalendar()};$('next').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);renderCalendar()};$('todayBtn').onclick=()=>{selected=new Date(today);view=new Date(today.getFullYear(),today.getMonth(),1);renderAll()};$('idBtn').onclick=showLogin;document.querySelectorAll('.mode-btn').forEach(b=>b.onclick=()=>switchMode(b.dataset.mode));$('codeForm').onsubmit=e=>{e.preventDefault();openPlanner($('codeInput').value)};const savedCode=localStorage.getItem('todoPlanner_activeCode');if(savedCode)openPlanner(savedCode);else showLogin();
