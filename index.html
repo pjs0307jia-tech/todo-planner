@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="app-build" content="20261003-mobile-sync-v2">
+<meta name="app-build" content="20261010-dark-mode-v1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -17,6 +17,7 @@
 <link rel="shortcut icon" href="/todo-planner/todo-logo-final-180.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/todo-planner/todo-logo-final-180.png">
 <link rel="manifest" href="/todo-planner/manifest.webmanifest?v=70">
+<script src="theme-v1.js"></script>
 <link rel="stylesheet" href="style.css?v=27">
 <link rel="stylesheet" href="edit-override.css?v=30">
 <link rel="stylesheet" href="deadline-feature.css?v=27">
@@ -28,10 +29,11 @@
 <link rel="stylesheet" href="mobile-modal-v32.css?v=32">
 <link rel="stylesheet" href="todo-status.css?v=83">
 <link rel="stylesheet" href="side-compact-v1.css?v=4">
+<link rel="stylesheet" href="theme-v1.css">
 <script>
 (function(){
   try{
-    const BUILD='20261003-mobile-sync-v2';
+    const BUILD='20261010-dark-mode-v1';
     const key='todoPlanner_client_build';
     const prev=localStorage.getItem(key)||'';
     localStorage.setItem(key,BUILD);
@@ -68,6 +70,10 @@
       </div>
     </div>
     <div class="hero-right">
+      <button class="theme-toggle" id="themeToggle" type="button" aria-label="다크 모드로 전환" aria-pressed="false" title="다크 모드로 전환">
+        <svg class="theme-icon-moon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.2 15.3A8.6 8.6 0 0 1 8.7 3.8a8.6 8.6 0 1 0 11.5 11.5Z"/></svg>
+        <svg class="theme-icon-sun" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
       <button class="id-pill" id="idBtn"><span class="sync-dot local" id="syncDot"></span><span id="idText">ID</span></button>
       <button class="today-btn" id="todayBtn">오늘로</button>
     </div>
@@ -168,7 +174,7 @@
   }catch{}
 })();
 </script>
-<script src="app-sync-v86.js"></script>
+<script src="app-sync-v86.js?v=theme1"></script>
 <script src="storage-safety-v1.js?v=7"></script>
 <script src="todo-status-ledger-v1.js?v=2"></script>
 <script src="todo-vault-outbox-v1.js?v=2"></script>

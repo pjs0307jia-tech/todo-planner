@@ -1,0 +1,157 @@
+html { color-scheme: light; }
+.theme-toggle {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--accent-deep);
+  transition: background .2s, border-color .2s, transform .15s;
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-toggle:hover { background: var(--accent-soft); }
+.theme-toggle:active { transform: scale(.94); }
+.theme-toggle:focus-visible { outline: 2px solid var(--accent-deep); outline-offset: 3px; }
+.theme-icon-sun { display: none; }
+html[data-theme="dark"] .theme-icon-moon { display: none; }
+html[data-theme="dark"] .theme-icon-sun { display: block; }
+
+html[data-theme="dark"] { color-scheme: dark; background: #19171c; }
+html[data-theme="dark"] body {
+  --bg: #19171c;
+  --surface: #252229;
+  --surface-raised: #2e2a32;
+  --line: #403841;
+  --text: #ece5eb;
+  --ink: var(--text);
+  --muted: #b2a5af;
+  --accent: #e99bb5;
+  --accent-deep: #efadc2;
+  --accent-soft: #392b36;
+  --accent-shadow: rgba(233,155,181,.15);
+  --button-ink: #281b22;
+  --progress-track: var(--line);
+  --good: #8db9a0;
+  --holiday: #f098b2;
+  --sat: #9ebde6;
+  --shadow: 0 14px 38px rgba(0,0,0,.18);
+}
+html[data-theme="dark"] body[data-mode="work"] {
+  --bg: #171b23;
+  --surface: #232934;
+  --surface-raised: #2b3340;
+  --line: #3b4757;
+  --text: #e4ebf4;
+  --muted: #a3b2c6;
+  --accent: #90b6e8;
+  --accent-deep: #adcdf7;
+  --accent-soft: #29384e;
+  --accent-shadow: rgba(144,182,232,.15);
+  --button-ink: #182438;
+  --good: #89b4dd;
+}
+
+html[data-theme="dark"] :is(.card,.login-card,.mood-box,.todo-item,.deadline-card,.dm-row) {
+  background: var(--surface);
+  border-color: var(--line) !important;
+}
+html[data-theme="dark"] :is(.mode-switch,.id-pill,.today-btn,.icon-btn,.day-manager-close,.selected-deadline-close,.inline-edit-cancel,.deadline-cancel,.dm-edit-cancel) {
+  background: var(--surface-raised);
+  color: var(--text);
+  border-color: var(--line);
+}
+html[data-theme="dark"] :is(input,select,textarea) {
+  background: var(--surface-raised);
+  color: var(--text);
+  border-color: var(--line);
+}
+html[data-theme="dark"] :is(input,textarea)::placeholder { color: var(--muted); opacity: 1; }
+html[data-theme="dark"] :is(.add-small,.todo-add,.code-go,.inline-edit-save,.deadline-save,.dm-edit-save,.diary-note-save) {
+  background: var(--accent) !important;
+  color: var(--button-ink);
+}
+html[data-theme="dark"] .deadline-add-toggle {
+  background: var(--accent-soft) !important;
+  color: var(--accent-deep) !important;
+}
+html[data-theme="dark"] .deadline-form {
+  background: var(--accent-soft) !important;
+  border-color: var(--line) !important;
+}
+html[data-theme="dark"] :is(.deadline-company,.deadline-head strong,.day-manager-date,.day-manager-section-head strong,.dm-row-title,.selected-deadline-title strong) { color: var(--text) !important; }
+html[data-theme="dark"] :is(.week,.side-note,.login-foot,.day-manager-summary,.day-manager-section-head span,.day-manager-empty,.dm-row-meta,.delete,.deadline-tools button,.dm-tools button,.dm-tools a,.todo-reorder-handle) { color: var(--muted); }
+html[data-theme="dark"] :is(.day-manager-kicker,.deadline-calendar-more,.work-calendar-more) { color: var(--accent-deep) !important; }
+html[data-theme="dark"] :is(.day.saturday .num,.week div:last-child) { color: var(--sat); }
+html[data-theme="dark"] .day.today-day .num { color: var(--button-ink); }
+html[data-theme="dark"] .day.outside { opacity: .5; }
+html[data-theme="dark"] .ring::after { background: var(--surface); }
+html[data-theme="dark"] .check:not(.done):not(.postponed):not(.skipped) {
+  background: var(--surface-raised);
+  border-color: var(--muted);
+}
+html[data-theme="dark"] .todo-item.done .todo-text { color: var(--muted); }
+html[data-theme="dark"] .todo-item.postponed { background: #352f23; border-color: #655739 !important; }
+html[data-theme="dark"] .todo-item.postponed .todo-text { color: #e3cd93; }
+html[data-theme="dark"] .todo-item.skipped { background: #35272c; border-color: #65414b !important; }
+html[data-theme="dark"] .todo-item.skipped .todo-text { color: #d9a7b3; }
+html[data-theme="dark"] :is(.rate-btn,.mood-mini.job span.off,.mood-mini.work span.off) { color: var(--line); }
+html[data-theme="dark"] .rate-btn.on.job { color: var(--accent); }
+html[data-theme="dark"] .rate-btn.on.work { color: var(--accent); }
+html[data-theme="dark"] :is(.color-btn,.dm-color-btn) { border-color: var(--surface); }
+
+html[data-theme="dark"] :is(.deadline-dday,.dm-dday,.selected-deadline-item,.work-type-badge,.dm-work-badge) {
+  background: var(--accent-soft) !important;
+  color: var(--accent-deep) !important;
+}
+html[data-theme="dark"] .deadline-card.urgent .deadline-dday { background: var(--accent) !important; color: var(--button-ink) !important; }
+html[data-theme="dark"] :is(.deadline-calendar-chip,.work-calendar-chip) {
+  background: var(--accent-soft) !important;
+  color: var(--accent-deep) !important;
+  border-left-color: var(--accent);
+}
+html[data-theme="dark"] :is(.work-type-badge.due,.dm-work-badge.due,.work-calendar-chip.due) { background: #324662 !important; color: #c7ddfc !important; }
+html[data-theme="dark"] :is(.work-type-badge.other,.dm-work-badge.other,.work-calendar-chip.other) { background: var(--surface-raised) !important; color: var(--muted) !important; }
+
+html[data-theme="dark"] #selectedDeadlines.day-manager-panel {
+  background: var(--surface) !important;
+  color: var(--text);
+  border-color: var(--line) !important;
+  box-shadow: 0 18px 50px rgba(0,0,0,.4) !important;
+}
+html[data-theme="dark"] :is(.day-manager-head,.day-manager-section+.day-manager-section) { border-color: var(--line); }
+html[data-theme="dark"] .day-manager-empty { background: var(--surface-raised); border-color: var(--line); }
+html[data-theme="dark"] :is(.day-manager-close:hover,.dm-tools button:hover,.dm-tools a:hover,.selected-deadline-item:hover) { background: var(--accent-soft); color: var(--accent-deep); }
+html[data-theme="dark"] .diary-note-input { box-shadow: inset 0 0 0 1px var(--line) !important; }
+html[data-theme="dark"] .diary-note-input:focus { box-shadow: inset 0 0 0 1.5px var(--accent) !important; }
+html[data-theme="dark"] .diary-note-view { background: var(--accent-soft) !important; }
+html[data-theme="dark"] .diary-note-view:hover { background: var(--surface-raised) !important; }
+html[data-theme="dark"] .todo-reorder-ghost { background: var(--surface) !important; }
+html[data-theme="dark"] .todo-reorder-placeholder { box-shadow: none; }
+html[data-theme="dark"] .login-overlay { background: rgba(18,16,22,.9); }
+html[data-theme="dark"] #todoAppSplash { background: var(--bg); }
+html[data-theme="dark"] .toast { background: var(--surface-raised); color: var(--text); border: 1px solid var(--line); }
+html[data-theme="dark"] body[data-mode] :is(.todo-list,.deadline-scroll,.day-manager-scroll) { scrollbar-color: var(--line) transparent !important; }
+html[data-theme="dark"] body[data-mode] :is(.todo-list,.deadline-scroll,.day-manager-scroll)::-webkit-scrollbar-thumb { background: var(--line) !important; }
+html[data-theme="dark"] .deadline-card.work-card.other { border-color: var(--line) !important; }
+
+@media (max-width:800px) {
+  .theme-toggle { width: 38px; height: 38px; }
+  html[data-theme="dark"] #selectedDeadlines.day-manager-panel { box-shadow: 0 0 0 100vmax rgba(0,0,0,.55),0 24px 70px rgba(0,0,0,.4) !important; }
+}
+@media (max-width:390px) {
+  .hero { gap: 6px !important; }
+  .hero-left { gap: 6px !important; }
+  .hero-right { gap: 5px; }
+  .hero h1 { font-size: 23px !important; }
+  .mode-btn { font-size: 11.5px !important; padding: 7px 8px !important; }
+  .theme-toggle { width: 34px; height: 34px; }
+  .today-btn { padding: 8px 9px !important; }
+}
+@media (prefers-reduced-motion:reduce) {
+  .theme-toggle { transition: none; }
+  html[data-theme="dark"] body { transition: none; }
+}
