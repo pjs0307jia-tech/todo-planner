@@ -139,10 +139,14 @@ async function main(){
 async function runtimeTests(){
   for(const table of Object.values(tables))table.length=0;
   await api({code,action:'save',state:initial});
-  const store=new Map();const session=new Map();let offline=false,delay=0;
+  const store=new Map();const session=new Map();let offline=false,delay=0,quota=Infinity,sessionBlocked=false;
   store.set('todoPlanner_activeCode',code);store.set(`todoPlanner_v3_${code}`,JSON.stringify(initial));
   store.set('todoPlanner_cloud_paused','1');
-  const storage=map=>({getItem:k=>map.get(k)||null,setItem:(k,v)=>map.set(k,String(v)),removeItem:k=>map.delete(k)});
+  const storage=map=>({getItem:k=>map.get(k)||null,setItem:(k,v)=>{
+    if(map===session&&sessionBlocked)throw new DOMException('Storage disabled','SecurityError');
+    v=String(v);const size=[...map].reduce((n,[key,value])=>n+key.length+value.length,0)-(map.has(k)?k.length+map.get(k).length:0)+k.length+v.length;
+    if(map===store&&size>quota)throw new DOMException('Storage quota exceeded','QuotaExceededError');map.set(k,v);
+  },removeItem:k=>map.delete(k)});
   const elements={storageNote:{textContent:''}};
   const timeouts=new Set();
   function boot(){
@@ -156,7 +160,7 @@ async function runtimeTests(){
       cloudRequest:async(action,extra={})=>{if(offline)throw Error('offline');if(delay)await new Promise(r=>setTimeout(r,delay));return (await api({code,action,...clone(extra)})).body;}
     });
     c.window=c;
-    for(const file of ['storage-safety-v2.js','todo-main-ack-v2.js','todo-vault-outbox-v2.js'])vm.runInContext(fs.readFileSync(file,'utf8'),c);
+    for(const file of ['storage-safety-v3.js','todo-main-ack-v3.js','todo-vault-outbox-v3.js'])vm.runInContext(fs.readFileSync(file,'utf8'),c);
     vm.runInContext('plannerPrepareBoot();todoMigrateLegacyOutbox()',c);return c;
   }
   let c=boot();await c.saveCloud();assert.equal(store.get('todoPlanner_cloud_paused'),undefined);
@@ -189,6 +193,43 @@ async function runtimeTests(){
   await api({code,action:'todo_upsert',mode:'job',date:today,todo:b,client_updated_at:b._itemUpdatedAt});
   assert.equal((await api({code,action:'load'})).body.state.todos.job[today].some(x=>x.id==='race'),false);
   console.log('PASS runtime: reorder and delete survive stale writes');
+  for(const t of timeouts)clearTimeout(t);timeouts.clear();
+  // Reproduce an established browser full of the former 30 whole-state backups.
+  const historyKey=`todoPlanner_local_history_${code}`;
+  store.set(historyKey,JSON.stringify(Array.from({length:30},()=>({state:clone(c.state),padding:'x'.repeat(10000)}))));
+  quota=[...store].reduce((n,[k,v])=>n+k.length+v.length,0);
+  c=boot();c.plannerAcceptBaseline(c.state);
+  let rendered=false;c.state.moods.job[today]=3;
+  assert.doesNotThrow(()=>{c.queueSave();rendered=true},'full storage must not interrupt the heart click before render');
+  assert.equal(rendered,true);
+  const checked={...c.state.todos.job[today][0],status:'done',done:true,_itemUpdatedAt:new Date().toISOString()};
+  assert.doesNotThrow(()=>{c.todoMainAckEnqueueUpsert('job',today,checked);c.queueSave()});
+  assert.equal(c.todoMainAckPending(),true);
+  assert.ok(JSON.parse(store.get(historyKey)).length<=2);
+  await c.saveCloud();
+  assert.equal((await api({code,action:'load'})).body.state.moods.job[today],3);
+  assert.equal((await api({code,action:'load'})).body.state.todos.job[today].find(x=>x.id===checked.id).status,'done');
+  console.log('PASS runtime: full browser storage does not block heart/check clicks or server saves');
+  // No reclaimable space: secondary storage must retain the unacknowledged edit
+  // across a reload, then retire it only after the server acknowledges it.
+  quota=0;offline=true;
+  c.state.moods.job[today]=1;c.queueSave();
+  c.todoMainAckEnqueueUpsert('job',today,{...checked,status:'skipped',done:false,_itemUpdatedAt:new Date().toISOString()});
+  for(const t of timeouts)clearTimeout(t);timeouts.clear();
+  c=boot();c.state=(await api({code,action:'load'})).body.state;c.plannerApplyPendingFields(c.state);c.todoMainAckApplyPending();
+  assert.equal(c.state.moods.job[today],1);
+  assert.equal(c.state.todos.job[today].find(x=>x.id===checked.id).status,'skipped');
+  offline=false;await c.saveCloud();
+  assert.equal(c.plannerSyncPending(),false);assert.equal(c.todoMainAckPending(),false);
+  assert.equal((await api({code,action:'load'})).body.state.moods.job[today],1);
+  assert.equal((await api({code,action:'load'})).body.state.todos.job[today].find(x=>x.id===checked.id).status,'skipped');
+  console.log('PASS runtime: secondary storage preserves pending heart/check edits across reload');
+  sessionBlocked=true;offline=true;c.crypto={};
+  assert.doesNotThrow(()=>{c.state.moods.job[today]=2;c.queueSave()});
+  assert.ok(c.plannerSyncPending());assert.ok(elements.storageNote.textContent.includes('이 창을 열어 주세요'));
+  offline=false;await c.saveCloud();assert.equal(c.plannerSyncPending(),false);
+  assert.equal((await api({code,action:'load'})).body.state.moods.job[today],2);
+  console.log('PASS runtime: denied storage and older crypto APIs do not interrupt clicks or network saves');
   for(const t of timeouts)clearTimeout(t);
 }
 main().catch(e=>{console.error(e);process.exit(1)});

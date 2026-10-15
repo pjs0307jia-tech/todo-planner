@@ -2,7 +2,7 @@
   let flushPromise=null;
   let timer=null;
 
-  function code(){return (typeof userCode==='string'&&userCode)||localStorage.getItem('todoPlanner_activeCode')||''}
+  function code(){return (typeof userCode==='string'&&userCode)||(window.plannerStorage||localStorage).getItem('todoPlanner_activeCode')||''}
   function key(){const c=code();return c?`todoPlanner_todo_main_ack_v1_${c}`:''}
   function clone(v){return JSON.parse(JSON.stringify(v))}
   function normalizeOp(x){
@@ -10,8 +10,8 @@
     if(!x.kind&&x.todo?.id)return {...x,kind:'upsert'};
     return x;
   }
-  function load(){try{const k=key();if(!k)return[];const v=JSON.parse(localStorage.getItem(k)||'[]');return Array.isArray(v)?v.map(normalizeOp).filter(Boolean):[]}catch{return[]}}
-  function save(items){try{const k=key();if(k)localStorage.setItem(k,JSON.stringify(items.slice(-250)))}catch{}}
+  function load(){try{const k=key();if(!k)return[];const v=JSON.parse((window.plannerStorage||localStorage).getItem(k)||'[]');return Array.isArray(v)?v.map(normalizeOp).filter(Boolean):[]}catch{return[]}}
+  function save(items){try{const k=key();if(k)(window.plannerStorage||localStorage).setItem(k,JSON.stringify(items))}catch{}}
   function status(todo){if(todo?.status==='done'||todo?.status==='postponed'||todo?.status==='skipped')return todo.status;return todo?.done?'done':'pending'}
   function idOf(op){return String(op?.todo?.id||op?.todo_id||'')}
   function opKey(op){if(op?.kind==='order')return `order:${op.mode}:${op.date}`;return `${op?.kind||'upsert'}:${idOf(op)}`}

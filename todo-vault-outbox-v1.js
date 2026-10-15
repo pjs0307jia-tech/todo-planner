@@ -7,12 +7,12 @@
   window.todoMigrateLegacyOutbox=function(){
     const key=`todoPlanner_todo_outbox_v1_${userCode}`;
     try{
-      const ops=JSON.parse(localStorage.getItem(key)||'[]');
+      const ops=JSON.parse((window.plannerStorage||localStorage).getItem(key)||'[]');
       for(const op of ops){
         if(op.kind==='delete')window.todoVaultEnqueueDelete(op.todo_id,op.mutation_at);
         else window.todoVaultEnqueueUpsert(op.mode,op.date,op.todo,op.mutation_at);
       }
-      localStorage.removeItem(key);
+      (window.plannerStorage||localStorage).removeItem(key);
     }catch(e){console.warn('pending todo migration failed',e)}
   };
 })();

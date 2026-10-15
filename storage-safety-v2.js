@@ -1,5 +1,41 @@
 (function(){
-  const preloadCode=localStorage.getItem('todoPlanner_activeCode')||'';
+  // Keep edits usable even when Web Storage is full or disabled. Never discard
+  // the main planner, pending operations, or the newest recovery snapshot.
+  const memory=new Map(),volatile=new Set();
+  const fallbackKey=key=>`todoPlanner_storage_fallback_${key}`;
+  function compactHistory(){
+    try{
+      const code=(typeof userCode==='string'&&userCode)||localStorage.getItem('todoPlanner_activeCode');
+      if(!code)return;
+      const key=`todoPlanner_local_history_${code}`,raw=localStorage.getItem(key);
+      const history=JSON.parse(raw||'[]');
+      if(Array.isArray(history)&&history.length>1)localStorage.setItem(key,JSON.stringify(history.slice(-1)));
+    }catch{}
+  }
+  function getItem(key){
+    if(memory.has(key))return memory.get(key);
+    try{const raw=sessionStorage.getItem(fallbackKey(key));if(raw!==null)return JSON.parse(raw).value}catch{}
+    try{return localStorage.getItem(key)}catch{return null}
+  }
+  function setItem(key,value){
+    value=value===null?null:String(value);
+    for(let attempt=0;attempt<2;attempt++){
+      try{
+        if(value===null)localStorage.removeItem(key);else localStorage.setItem(key,value);
+        memory.delete(key);volatile.delete(key);
+        try{sessionStorage.removeItem(fallbackKey(key))}catch{}
+        return true;
+      }catch{if(!attempt)compactHistory()}
+    }
+    memory.set(key,value);
+    try{sessionStorage.setItem(fallbackKey(key),JSON.stringify({value}));volatile.delete(key);return true}
+    catch{volatile.add(key);return false}
+  }
+  window.plannerStorage={getItem,setItem,removeItem:key=>setItem(key,null),hasVolatile:()=>volatile.size>0};
+  compactHistory();
+})();
+(function(){
+  const preloadCode=window.plannerStorage.getItem('todoPlanner_activeCode')||'';
   const preloadKey=preloadCode?`todoPlanner_preload_snapshot_${preloadCode}`:'';
   const rescueKey=preloadCode?`todoPlanner_boot_rescue_${preloadCode}`:'';
   let recoveredFromLocal=false;
@@ -15,8 +51,8 @@
   function featureFallbacks(){
     const code=currentCode();
     if(!code)return {deadlines:[],workItems:[]};
-    const deadlines=parseJson(localStorage.getItem(`todoPlanner_deadlines_${code}`));
-    const workItems=parseJson(localStorage.getItem(`todoPlanner_workItems_${code}`));
+    const deadlines=parseJson(window.plannerStorage.getItem(`todoPlanner_deadlines_${code}`));
+    const workItems=parseJson(window.plannerStorage.getItem(`todoPlanner_workItems_${code}`));
     return {deadlines:Array.isArray(deadlines)?deadlines:[],workItems:Array.isArray(workItems)?workItems:[]};
   }
 
@@ -143,37 +179,38 @@
     const code=currentCode();if(!code||!state||typeof state!=='object')return;
     try{
       const key=historyKey();
-      const history=parseJson(localStorage.getItem(key));
+      const history=parseJson(window.plannerStorage.getItem(key));
       const arr=Array.isArray(history)?history:[];
       const snapshot={at:new Date().toISOString(),reason,state:clone(normalizeSafe(state))};
       const last=arr[arr.length-1];
       if(!last||JSON.stringify(last.state)!==JSON.stringify(snapshot.state))arr.push(snapshot);
-      if(arr.length>30)arr.splice(0,arr.length-30);
-      localStorage.setItem(key,JSON.stringify(arr));
+      if(arr.length>2)arr.splice(0,arr.length-2);
+      while(arr.length>1&&JSON.stringify(arr).length>250000)arr.shift();
+      window.plannerStorage.setItem(key,JSON.stringify(arr));
     }catch(e){console.warn('local history save failed',e)}
   }
 
-  function markPending(stamp){const key=pendingKey();if(!key)return;try{localStorage.setItem(key,stamp||state?._updatedAt||new Date().toISOString())}catch{}}
-  function pendingStamp(){const key=pendingKey();if(!key)return '';try{return localStorage.getItem(key)||''}catch{return ''}}
-  function clearPendingIf(stamp){const key=pendingKey();if(!key)return;try{const cur=localStorage.getItem(key)||'';if(!cur||cur===stamp||Date.parse(cur)<=Date.parse(stamp))localStorage.removeItem(key)}catch{}}
-  function showSaving(){try{if(typeof setSyncStatus==='function')setSyncStatus('local');const note=document.getElementById('storageNote');if(note&&currentCode())note.textContent=`ID ${currentCode()} · 저장 중…`}catch{}}
+  function markPending(stamp){const key=pendingKey();if(!key)return;try{window.plannerStorage.setItem(key,stamp||state?._updatedAt||new Date().toISOString())}catch{}}
+  function pendingStamp(){const key=pendingKey();if(!key)return '';try{return window.plannerStorage.getItem(key)||''}catch{return ''}}
+  function clearPendingIf(stamp){const key=pendingKey();if(!key)return;try{const cur=window.plannerStorage.getItem(key)||'';if(!cur||cur===stamp||Date.parse(cur)<=Date.parse(stamp))window.plannerStorage.removeItem(key)}catch{}}
+  function showSaving(){try{if(typeof setSyncStatus==='function')setSyncStatus('local');const note=document.getElementById('storageNote');if(note&&currentCode()&&!window.plannerStorage.hasVolatile())note.textContent=`ID ${currentCode()} · 저장 중…`}catch{}}
 
-  const preload=parseJson(preloadKey?sessionStorage.getItem(preloadKey):null);
-  const rescue=parseJson(rescueKey?localStorage.getItem(rescueKey):null);
+  const preload=(()=>{try{return parseJson(preloadKey?sessionStorage.getItem(preloadKey):null)}catch{return null}})();
+  const rescue=parseJson(rescueKey?window.plannerStorage.getItem(rescueKey):null);
   const bestBoot=pickBetterSnapshot(preload,rescue);
 
   normalize=normalizeSafe;
 
   emptyState=function(){return {version:3,todos:{job:{},work:{}},moods:{job:{},work:{}},notes:{job:{},work:{}},events:{},deadlines:[],workItems:[],_deletedTodoIds:[],_updatedAt:''}};
-  loadLocal=function(){try{return normalizeSafe(JSON.parse(localStorage.getItem(storageKey())))}catch{return emptyState()}};
-  saveLocal=function(){try{localStorage.setItem(storageKey(),JSON.stringify(state))}catch(e){console.warn('local save failed',e)}};
+  loadLocal=function(){try{return normalizeSafe(JSON.parse(window.plannerStorage.getItem(storageKey())))}catch{return emptyState()}};
+  saveLocal=function(){try{window.plannerStorage.setItem(storageKey(),JSON.stringify(state))}catch(e){console.warn('local save failed',e)}};
 
   // Persist field mutations independently; a stale whole-state save must never
   // replace a newer heart, note, deadline or event from another save/device.
   let baseline=null,baselineCode='',savingPromise=null,retryTimer=null,retryDelay=2000;
   function fieldsKey(){return `todoPlanner_field_outbox_v1_${currentCode()}`}
-  function pendingFields(){return parseJson(localStorage.getItem(fieldsKey()))||{}}
-  function writeFields(ops){localStorage.setItem(fieldsKey(),JSON.stringify(ops))}
+  function pendingFields(){return parseJson(window.plannerStorage.getItem(fieldsKey()))||{}}
+  function writeFields(ops){window.plannerStorage.setItem(fieldsKey(),JSON.stringify(ops))}
   function fieldMap(s){
     const out={};
     for(const field of ['moods','notes'])for(const mode of ['job','work']){
@@ -190,7 +227,7 @@
     for(const key of new Set([...Object.keys(baseline||{}),...Object.keys(next)])){
       if(!all&&JSON.stringify(baseline?.[key])===JSON.stringify(next[key]))continue;
       const entry=next[key]||baseline[key];
-      ops[key]={...clone(entry),value:next[key]?clone(next[key].value):null,mutation_at:stamp,token:crypto.randomUUID()};
+      ops[key]={...clone(entry),value:next[key]?clone(next[key].value):null,mutation_at:stamp,token:typeof crypto.randomUUID==='function'?crypto.randomUUID():`${stamp}-${Math.random().toString(36).slice(2)}`};
     }
     writeFields(ops);baseline=clone(next);
   }
@@ -212,7 +249,7 @@
   window.plannerApplyPendingFields=applyPendingFields;
   window.plannerPrepareBoot=function(){
     acceptBaseline(state);
-    if(pendingStamp()||localStorage.getItem('todoPlanner_cloud_paused')==='1'){
+    if(pendingStamp()||window.plannerStorage.getItem('todoPlanner_cloud_paused')==='1'){
       // Migrate local-only recovery without replacing the local snapshot on boot.
       if(!Object.keys(pendingFields()).length)captureFields(true);
     }
@@ -239,8 +276,8 @@
         }
         if(owner!==currentCode())return false;
         if(typeof window.todoMainAckPending==='function'&&window.todoMainAckPending())throw Error('Todo save pending');
-        localStorage.removeItem(pendingKey());
-        localStorage.removeItem('todoPlanner_cloud_paused');
+        window.plannerStorage.removeItem(pendingKey());
+        window.plannerStorage.removeItem('todoPlanner_cloud_paused');
         retryDelay=2000;saveLocal();setSyncStatus('cloud');return true;
       }catch(e){
         console.warn('cloud save failed',e);markPending();setSyncStatus('local');
@@ -252,7 +289,7 @@
 
   queueSave=function(){
     state._updatedAt=new Date().toISOString();
-    captureFields();backupLocal('queue-save');saveLocal();markPending(state._updatedAt);showSaving();
+    captureFields();saveLocal();markPending(state._updatedAt);backupLocal('queue-save');showSaving();
     if(CLOUD_READY){clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveCloud(),60)}
   };
 
@@ -263,7 +300,7 @@
     previousSetSyncStatus(kind==='cloud'&&pending?'local':kind);
     const note=document.getElementById('storageNote');
     if(!note)return;
-    if(pending)note.textContent=`ID ${currentCode()} · ${savingPromise?'저장 중…':'이 기기에 저장됨 · 서버 저장 재시도 중'}`;
+    if(pending)note.textContent=`ID ${currentCode()} · ${window.plannerStorage.hasVolatile()?'서버 저장 대기 · 저장 완료까지 이 창을 열어 주세요':savingPromise?'저장 중…':'이 기기에 저장됨 · 서버 저장 대기'}`;
     else if(kind==='cloud')note.textContent=`ID ${currentCode()} · 저장 완료`;
   };
 
@@ -285,6 +322,7 @@
   window.plannerSyncPending=()=>Boolean(pendingStamp())||Object.keys(pendingFields()).length>0;
   window.plannerMarkSyncPending=()=>{if(state?._updatedAt)markPending(state._updatedAt)};
 
+  window.addEventListener('beforeunload',e=>{if(window.plannerStorage.hasVolatile()&&(window.plannerSyncPending()||window.todoMainAckPending?.())){e.preventDefault();e.returnValue=''}});
   window.addEventListener('pagehide',flushPendingSave);
   document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flushPendingSave()});
 
