@@ -16,8 +16,13 @@
 .lucky-clover:active { transform: scale(.9); }
 .lucky-clover:focus-visible { outline: 2px solid #77a789; outline-offset: 3px; }
 .lucky-clover > svg { width: 23px; height: 23px; }
-.luck-effects { position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 700; }
-/* Deliberate click-triggered pops, including a gentle reduced-motion version. */
+.luck-effects {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 700;
+}
 .luck-particle {
   position: absolute;
   display: block;
@@ -29,21 +34,25 @@
   user-select: none;
   pointer-events: none;
   opacity: 0;
-  filter: drop-shadow(0 3px 5px #48703d22);
-  animation: clover-pop var(--life) ease-out var(--delay) both;
+  filter: drop-shadow(0 3px 6px #48703d22);
+  animation: clover-float var(--life, 3100ms) ease-out var(--delay, 0ms) both;
 }
-@keyframes clover-pop {
-  0% { opacity: 0; transform: translate(-50%,-50%) scale(.08) rotate(-20deg); }
-  12% { opacity: 1; transform: translate(-50%,-50%) scale(1.24) rotate(9deg); }
-  23% { opacity: 1; transform: translate(-50%,-50%) scale(.93) rotate(-5deg); }
-  34% { opacity: 1; transform: translate(-50%,-50%) scale(1.04) rotate(3deg); }
-  70% { opacity: 1; transform: translate(-50%,-65%) scale(1) rotate(var(--tilt)); }
-  100% { opacity: 0; transform: translate(-50%,-115%) scale(.6) rotate(var(--tilt)); }
+@keyframes clover-float {
+  0% { opacity: 0; transform: translate(-50%,-50%) scale(.15) rotate(-18deg); }
+  15% { opacity: 1; transform: translate(-50%,-50%) scale(1.26) rotate(8deg); }
+  28% { opacity: 1; transform: translate(-50%,-58%) scale(.95) rotate(-5deg); }
+  43% { opacity: .98; transform: translate(-50%,-73%) scale(1.04) rotate(3deg); }
+  58% { opacity: .89; transform: translate(-50%,-90%) scale(1); }
+  75% { opacity: .52; transform: translate(-50%,-115%) scale(.92) rotate(var(--tilt)); }
+  90% { opacity: .2; transform: translate(calc(-50% + var(--drift)),calc(-50% + var(--up))) scale(.83) rotate(var(--tilt)); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--drift)),calc(-50% + var(--up))) scale(.74) rotate(var(--tilt)); }
 }
-@keyframes clover-gentle-pop {
-  0% { opacity: 0; transform: translate(-50%,-50%) scale(.9); }
-  18%,75% { opacity: 1; transform: translate(-50%,-50%) scale(1); }
-  100% { opacity: 0; transform: translate(-50%,-50%) scale(1); }
+@keyframes clover-gentle-fade {
+  0% { opacity: 0; transform: translate(-50%,-50%) scale(.86); }
+  23% { opacity: 1; transform: translate(-50%,-50%) scale(1.06); }
+  56% { opacity: .85; transform: translate(-50%,-50%) scale(1); }
+  78% { opacity: .38; transform: translate(-50%,-50%) scale(.95); }
+  100% { opacity: 0; transform: translate(-50%,-50%) scale(.9); }
 }
 html[data-theme="dark"] .lucky-clover { color: #a2cdb1; }
 html[data-theme="dark"] .lucky-clover:hover { background: #2b3a31; border-color: #4e6e58; }
@@ -52,4 +61,5 @@ html[data-theme="dark"] .lucky-clover:hover { background: #2b3a31; border-color:
 @media (max-width:360px) { .hero { flex-wrap: wrap !important; row-gap: 10px !important; } }
 @media (prefers-reduced-motion:reduce) {
   .lucky-clover:hover, .lucky-clover:active { transform: none; }
+  .luck-particle { animation-name: clover-gentle-fade; }
 }
