@@ -162,69 +162,109 @@
   const rescue=parseJson(rescueKey?localStorage.getItem(rescueKey):null);
   const bestBoot=pickBetterSnapshot(preload,rescue);
 
-  normalize=function(raw){
-    const cloud=normalizeSafe(raw);
-    if(!bestBoot||!preloadCode||userCode!==preloadCode)return cloud;
-    const local=normalizeSafe(bestBoot);
-    const hasRealPending=Boolean(pendingStamp());
-    const merged=hasRealPending?mergeStates(local,cloud):mergeStates(cloud,local);
-    if(JSON.stringify(merged)!==JSON.stringify(cloud)){
-      merged._updatedAt=new Date().toISOString();
-      recoveredFromLocal=true;
-      markPending(merged._updatedAt);
-    }
-    return merged;
-  };
+  normalize=normalizeSafe;
 
   emptyState=function(){return {version:3,todos:{job:{},work:{}},moods:{job:{},work:{}},notes:{job:{},work:{}},events:{},deadlines:[],workItems:[],_deletedTodoIds:[],_updatedAt:''}};
   loadLocal=function(){try{return normalizeSafe(JSON.parse(localStorage.getItem(storageKey())))}catch{return emptyState()}};
   saveLocal=function(){try{localStorage.setItem(storageKey(),JSON.stringify(state))}catch(e){console.warn('local save failed',e)}};
 
-  saveCloud=async function(){
-    if(!CLOUD_READY||!currentCode())return false;
-    if(cloudSaveInFlight){cloudSaveAgain=true;return false}
-    cloudSaveInFlight=true;
-    let snapshot=clone(normalizeSafe(state));
-    const sentStamp=snapshot._updatedAt||new Date().toISOString();
-    snapshot._updatedAt=sentStamp;
-    try{
-      if(typeof window.todoVaultFlushOutbox==='function'){
-        try{await window.todoVaultFlushOutbox()}catch{}
-      }
-      try{
-        const latest=await cloudRequest('load');
-        if(latest?.state)snapshot=protectSnapshotTodos(snapshot,latest.state);
-        snapshot._updatedAt=sentStamp;
-      }catch(e){console.warn('pre-save cloud check failed',e)}
-
-      const data=await cloudRequest('save',{state:snapshot});
-      if(state?._updatedAt===sentStamp){
-        state.todos=clone(snapshot.todos);
-        state._deletedTodoIds=clone(snapshot._deletedTodoIds||[]);
-      }
-      if(data?.updated_at)state._cloudUpdatedAt=data.updated_at;
-      clearPendingIf(sentStamp);
-      saveLocal();
-      if(pendingStamp())showSaving();else if(typeof setSyncStatus==='function')setSyncStatus('cloud');
-      return true;
-    }catch(e){
-      console.warn('cloud save failed',e);
-      markPending(state?._updatedAt||sentStamp);
-      if(typeof setSyncStatus==='function')setSyncStatus('local');
-      return false;
-    }finally{
-      cloudSaveInFlight=false;
-      if(cloudSaveAgain||pendingStamp()){
-        cloudSaveAgain=false;
-        if(pendingStamp()&&state?._updatedAt!==sentStamp)setTimeout(()=>saveCloud(),80);
+  // Persist field mutations independently; a stale whole-state save must never
+  // replace a newer heart, note, deadline or event from another save/device.
+  let baseline=null,baselineCode='',savingPromise=null,retryTimer=null,retryDelay=2000;
+  function fieldsKey(){return `todoPlanner_field_outbox_v1_${currentCode()}`}
+  function pendingFields(){return parseJson(localStorage.getItem(fieldsKey()))||{}}
+  function writeFields(ops){localStorage.setItem(fieldsKey(),JSON.stringify(ops))}
+  function fieldMap(s){
+    const out={};
+    for(const field of ['moods','notes'])for(const mode of ['job','work']){
+      for(const [date,value] of Object.entries(s?.[field]?.[mode]||{}))out[`${field}:${mode}:${date}`]={field,mode,key:date,value};
+    }
+    for(const [date,value] of Object.entries(s?.events||{}))out[`events:${date}`]={field:'events',key:date,value};
+    for(const field of ['deadlines','workItems'])for(const item of s?.[field]||[])if(item?.id)out[`${field}:${item.id}`]={field,key:String(item.id),value:item};
+    return out;
+  }
+  function acceptBaseline(s){baseline=clone(fieldMap(s));baselineCode=currentCode()}
+  function captureFields(all=false){
+    if(baselineCode!==currentCode())acceptBaseline(state);
+    const next=fieldMap(state),ops=pendingFields(),stamp=new Date().toISOString();
+    for(const key of new Set([...Object.keys(baseline||{}),...Object.keys(next)])){
+      if(!all&&JSON.stringify(baseline?.[key])===JSON.stringify(next[key]))continue;
+      const entry=next[key]||baseline[key];
+      ops[key]={...clone(entry),value:next[key]?clone(next[key].value):null,mutation_at:stamp,token:crypto.randomUUID()};
+    }
+    writeFields(ops);baseline=clone(next);
+  }
+  function applyPendingFields(target){
+    for(const op of Object.values(pendingFields())){
+      if(op.field==='moods'||op.field==='notes'){
+        target[op.field]??={job:{},work:{}};target[op.field][op.mode]??={};
+        if(op.value===null)delete target[op.field][op.mode][op.key];else target[op.field][op.mode][op.key]=clone(op.value);
+      }else if(op.field==='events'){
+        target.events??={};if(op.value===null)delete target.events[op.key];else target.events[op.key]=clone(op.value);
+      }else{
+        const items=(target[op.field]||[]).filter(x=>String(x.id)!==op.key);
+        if(op.value!==null)items.push(clone(op.value));target[op.field]=items;
       }
     }
+    return target;
+  }
+  window.plannerAcceptBaseline=acceptBaseline;
+  window.plannerApplyPendingFields=applyPendingFields;
+  window.plannerPrepareBoot=function(){
+    acceptBaseline(state);
+    if(pendingStamp()||localStorage.getItem('todoPlanner_cloud_paused')==='1'){
+      // Migrate local-only recovery without replacing the local snapshot on boot.
+      if(!Object.keys(pendingFields()).length)captureFields(true);
+    }
+    applyPendingFields(state);
+  };
+
+  saveCloud=function(){
+    if(!CLOUD_READY||!currentCode())return Promise.resolve(false);
+    if(savingPromise)return savingPromise;
+    const owner=currentCode();
+    savingPromise=(async()=>{
+      try{
+        if(typeof window.todoMainAckFlush==='function'&&!await window.todoMainAckFlush())throw Error('Todo save pending');
+        while(owner===currentCode()){
+          const sent=pendingFields(),ops=Object.values(sent);
+          if(!ops.length)break;
+          const data=await cloudRequest('patch',{operations:ops});
+          if(!data?.ok)throw Error('Save was not acknowledged');
+          if(owner!==currentCode())return false;
+          const current=pendingFields();
+          for(const [key,op] of Object.entries(sent))if(current[key]?.token===op.token)delete current[key];
+          writeFields(current);
+          if(data.updated_at)state._cloudUpdatedAt=data.updated_at;
+        }
+        if(owner!==currentCode())return false;
+        if(typeof window.todoMainAckPending==='function'&&window.todoMainAckPending())throw Error('Todo save pending');
+        localStorage.removeItem(pendingKey());
+        localStorage.removeItem('todoPlanner_cloud_paused');
+        retryDelay=2000;saveLocal();setSyncStatus('cloud');return true;
+      }catch(e){
+        console.warn('cloud save failed',e);markPending();setSyncStatus('local');
+        clearTimeout(retryTimer);retryTimer=setTimeout(()=>saveCloud(),retryDelay);retryDelay=Math.min(retryDelay*2,60000);return false;
+      }finally{savingPromise=null}
+    })();
+    return savingPromise;
   };
 
   queueSave=function(){
     state._updatedAt=new Date().toISOString();
-    backupLocal('queue-save');saveLocal();markPending(state._updatedAt);showSaving();
+    captureFields();backupLocal('queue-save');saveLocal();markPending(state._updatedAt);showSaving();
     if(CLOUD_READY){clearTimeout(saveTimer);saveTimer=setTimeout(()=>saveCloud(),60)}
+  };
+
+  const previousSetSyncStatus=setSyncStatus;
+  setSyncStatus=function(kind){
+    const pending=Boolean(pendingStamp())||Object.keys(pendingFields()).length>0||
+      (typeof window.todoMainAckPending==='function'&&window.todoMainAckPending());
+    previousSetSyncStatus(kind==='cloud'&&pending?'local':kind);
+    const note=document.getElementById('storageNote');
+    if(!note)return;
+    if(pending)note.textContent=`ID ${currentCode()} · ${savingPromise?'저장 중…':'이 기기에 저장됨 · 서버 저장 재시도 중'}`;
+    else if(kind==='cloud')note.textContent=`ID ${currentCode()} · 저장 완료`;
   };
 
   function flushPendingSave(){
@@ -235,14 +275,14 @@
     // overwrite newer todo statuses before the item-level preflight can run.
     // The pending flag survives locally and the next visible/online sync calls
     // saveCloud(), which performs the protected merge first.
-    try{if(typeof window.todoVaultFlushOutbox==='function')window.todoVaultFlushOutbox()}catch{}
+    try{if(typeof saveCloud==='function')saveCloud()}catch{}
   }
 
   window.plannerNormalizeSafe=normalizeSafe;
   window.plannerMergeStates=mergeStates;
   window.plannerProtectSnapshotTodos=protectSnapshotTodos;
   window.plannerBackupLocal=backupLocal;
-  window.plannerSyncPending=()=>Boolean(pendingStamp());
+  window.plannerSyncPending=()=>Boolean(pendingStamp())||Object.keys(pendingFields()).length>0;
   window.plannerMarkSyncPending=()=>{if(state?._updatedAt)markPending(state._updatedAt)};
 
   window.addEventListener('pagehide',flushPendingSave);

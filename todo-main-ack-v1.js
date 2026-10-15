@@ -1,33 +1,5 @@
 (function(){
-  const nativeFetch=window.fetch.bind(window);
-  const PLANNER_PATH='/functions/v1/planner-sync';
-  window.fetch=async function(input,init){
-    let nextInit=init;
-    try{
-      const url=typeof input==='string'?input:(input&&input.url)||'';
-      const isPlanner=String(url).includes(PLANNER_PATH)&&String(init?.method||'GET').toUpperCase()==='POST'&&typeof init?.body==='string';
-      if(isPlanner){
-        const body=JSON.parse(init.body);
-        if(body?.action==='save'&&body?.state&&typeof body.state==='object'){
-          const allowTodoWrite=body._todo_write===true;
-          if('_todo_write' in body)delete body._todo_write;
-          if(!allowTodoWrite&&Object.prototype.hasOwnProperty.call(body.state,'todos')){
-            body.state={...body.state};delete body.state.todos;
-          }
-          nextInit={...init,body:JSON.stringify(body)};
-        }
-      }
-    }catch(e){console.warn('todo save firewall parse failed',e)}
-    return nativeFetch(input,nextInit);
-  };
-  window.todoCloudSaveWithTodos=async function(snapshot){
-    if(typeof cloudRequest!=='function')return null;
-    return cloudRequest('save',{state:snapshot,_todo_write:true});
-  };
-})();
-
-(function(){
-  let flushing=false;
+  let flushPromise=null;
   let timer=null;
 
   function code(){return (typeof userCode==='string'&&userCode)||localStorage.getItem('todoPlanner_activeCode')||''}
@@ -47,6 +19,8 @@
   function enqueueOp(op){
     if(!op)return;
     const items=load(),id=idOf(op);
+    const previous=items.find(x=>idOf(x)===id&&id);
+    if(previous&&Date.parse(previous.todo?._itemUpdatedAt||previous.queued_at)>Date.parse(op.todo?._itemUpdatedAt||op.queued_at))return;
     if(op.kind==='delete'&&id){save([...items.filter(x=>idOf(x)!==id),op]);schedule(40);return}
     if(op.kind==='upsert'&&id){
       const move=items.find(x=>x.kind==='move'&&idOf(x)===id);
@@ -55,7 +29,7 @@
     const k=opKey(op);save([...items.filter(x=>opKey(x)!==k),op]);schedule(40);
   }
   function enqueueUpsert(mode,date,todo){if(mode&&date&&todo?.id)enqueueOp({kind:'upsert',mode,date,todo:clone(todo),queued_at:new Date().toISOString()})}
-  function enqueueDelete(todoId){if(todoId)enqueueOp({kind:'delete',todo_id:String(todoId),queued_at:new Date().toISOString()})}
+  function enqueueDelete(todoId,stamp){if(todoId)enqueueOp({kind:'delete',todo_id:String(todoId),queued_at:stamp||new Date().toISOString()})}
   function enqueueMove(mode,fromDate,toDate,todo){if(mode&&fromDate&&toDate&&todo?.id)enqueueOp({kind:'move',mode,fromDate,toDate,todo:clone(todo),queued_at:new Date().toISOString()})}
   function enqueueOrder(mode,date,ids){const clean=(Array.isArray(ids)?ids:[]).map(String).filter(Boolean);if(mode&&date&&clean.length)enqueueOp({kind:'order',mode,date,ids:clean,queued_at:new Date().toISOString()})}
 
@@ -106,33 +80,30 @@
     if(op.kind==='order'){const arr=s?.todos?.[op.mode]?.[op.date];if(!Array.isArray(arr))return false;const actual=arr.map(x=>String(x?.id||'')).filter(id=>op.ids.includes(id)),expected=op.ids.filter(id=>arr.some(x=>String(x?.id||'')===id));return actual.join('|')===expected.join('|')}
     return false;
   }
-  function delay(ms){return new Promise(r=>setTimeout(r,ms))}
-  async function syncVault(op){
-    if(op.kind==='upsert'&&typeof window.todoVaultEnqueueUpsert==='function')window.todoVaultEnqueueUpsert(op.mode,op.date,op.todo,op.todo?._itemUpdatedAt||op.queued_at);
-    else if(op.kind==='move'&&typeof window.todoVaultEnqueueUpsert==='function')window.todoVaultEnqueueUpsert(op.mode,op.toDate,op.todo,op.todo?._itemUpdatedAt||op.queued_at);
-    else if(op.kind==='delete'&&typeof window.todoVaultEnqueueDelete==='function')window.todoVaultEnqueueDelete(String(op.todo_id),op.queued_at);
-    if(typeof window.todoVaultFlushOutbox==='function')await window.todoVaultFlushOutbox();
-  }
-  async function saveTrusted(snapshot){return typeof window.todoCloudSaveWithTodos==='function'?window.todoCloudSaveWithTodos(snapshot):cloudRequest('save',{state:snapshot,_todo_write:true})}
-
-  async function flush(){
-    if(flushing||!CLOUD_READY||!code()||typeof cloudRequest!=='function')return false;
-    const pending=load();if(!pending.length)return true;flushing=true;
-    try{
-      for(const op of pending){
-        let ok=false;
-        for(let attempt=0;attempt<5&&!ok;attempt++){
-          try{
-            applyOp(state,op);if(typeof saveLocal==='function')saveLocal();await syncVault(op);
-            const before=await cloudRequest('load');const base=before?.state&&typeof before.state==='object'?clone(before.state):clone(state);
-            await saveTrusted(applyOp(base,op));await delay(120+attempt*90);
-            const after=await cloudRequest('load');ok=verify(after?.state,op);if(!ok)await delay(160+attempt*140);
-          }catch(e){console.warn('todo main ack attempt failed',e);await delay(220+attempt*180)}
+  function sameOperation(a,b){return a&&b&&JSON.stringify(a)===JSON.stringify(b)}
+  function flush(){
+    if(flushPromise)return flushPromise;
+    if(!load().length)return Promise.resolve(true);
+    if(!CLOUD_READY||!code()||typeof cloudRequest!=='function')return Promise.resolve(false);
+    const owner=code();
+    flushPromise=(async()=>{
+      try{
+        while(owner===code()){
+          const op=load()[0];if(!op)return true;
+          let response;
+          if(op.kind==='order')response=await cloudRequest('patch',{operations:[{field:'todoOrder',mode:op.mode,key:op.date,value:op.ids,mutation_at:op.queued_at}]});
+          else if(op.kind==='delete')response=await cloudRequest('todo_delete',{todo_id:String(op.todo_id),client_updated_at:op.queued_at});
+          else response=await cloudRequest('todo_upsert',{mode:op.mode,date:op.toDate||op.date,todo:op.todo,client_updated_at:op.todo?._itemUpdatedAt||op.queued_at});
+          if(!response?.ok)throw Error('Todo save was not acknowledged');
+          if(owner!==code())return false;
+          // An ACK belongs only to the exact revision sent, never a later edit.
+          save(load().filter(x=>!sameOperation(x,op)));
         }
-        if(ok){const k=opKey(op);save(load().filter(x=>opKey(x)!==k))}else break;
-      }
-    }finally{flushing=false}
-    if(load().length){schedule(1800);return false}return true;
+        return false;
+      }catch(e){console.warn('todo save pending',e);schedule(5000);return false}
+      finally{flushPromise=null;if(typeof setSyncStatus==='function')setSyncStatus(load().length?'local':'cloud')}
+    })();
+    return flushPromise;
   }
 
   function schedule(ms=250){clearTimeout(timer);timer=setTimeout(()=>flush(),ms)}

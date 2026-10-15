@@ -164,12 +164,8 @@ function persistWorkItems(){
 }
 async function loadWorkData(){
   if(!userCode)return;
-  const local=loadWorkLocal();
-  let cloud=null;
-  if(CLOUD_READY){
-    try{const raw=await cloudRequest('load');if(Array.isArray(raw?.state?.workItems))cloud=raw.state.workItems}catch(e){console.warn('work cloud load failed',e)}
-  }
-  workItems=(cloud??local).filter(x=>x&&x.id&&x.title&&x.date).map(x=>({id:String(x.id),title:String(x.title),date:String(x.date),time:String(x.time||'18:00'),type:x.type==='due'?'due':'meeting',url:normalizeWorkUrl(x.url||'')})).sort(workSort);
+  const source=Array.isArray(state?.workItems)?state.workItems:loadWorkLocal();
+  workItems=source.filter(x=>x&&x.id&&x.title&&x.date).map(x=>({...x,id:String(x.id),title:String(x.title),date:String(x.date),time:String(x.time||'18:00'),type:typeof normalizeWorkType==='function'?normalizeWorkType(x.type):x.type,url:normalizeWorkUrl(x.url||'')})).sort(workSort);
   if(state&&typeof state==='object')state.workItems=workItems;
   saveWorkLocal();renderWorkFeature();
 }

@@ -1,11 +1,12 @@
 (function(){
- const original=window.fetch.bind(window);let blocked=false;
+ const original=window.fetch.bind(window);let blocked=false,blockedUntil=0;
  window.fetch=async function(input,init){
   const url=typeof input==='string'?input:input?.url||String(input);
   if(!url.startsWith('https://empbjojdpmeaottpesdt.supabase.co/functions/v1/planner-sync'))return original(input,init);
-  if(blocked||localStorage.getItem('todoPlanner_cloud_paused')==='1')throw Error('Cloud sync paused; records are saved in this browser.');
+  if(Date.now()<blockedUntil)throw Error('Cloud sync temporarily unavailable; records are saved in this browser.');
   const response=await original(input,init);
-  if(response.status===402){blocked=true;showBanner()}
+  if(response.status===402){blocked=true;blockedUntil=Date.now()+60000;showBanner()}
+  else if(response.ok){blocked=false;blockedUntil=0;localStorage.removeItem('todoPlanner_cloud_paused');document.getElementById('recoveryNotice')?.remove()}
   return response;
  };
  function showBanner(){

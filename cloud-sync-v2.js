@@ -56,14 +56,19 @@
     // 수정 중에는 cloud pull 자체를 미룬다.
     // 주기 동기화가 state를 갈아끼워 입력 중인 todo 참조를 끊는 문제를 막는다.
     if(inlineEditing())return;
-    if(!CLOUD_READY||!userCode||pulling)return;
+    if(!CLOUD_READY||!userCode||pulling||!window.plannerBootReady)return;
     const now=Date.now();if(!force&&now-lastPull<60000)return;
     lastPull=now;pulling=true;
     try{
       // Apply and attempt to send local user mutations BEFORE reading cloud.
       const pending=await flushPendingBestEffort();
 
+      const startedAt=state?._updatedAt;
+      const owner=userCode;
       const raw=await cloudRequest('load');
+      // A response begun before a new local mutation must not repaint the UI.
+      if(owner!==userCode||state?._updatedAt!==startedAt)return;
+      if(window.todoMainAckPending?.()||window.plannerSyncPending?.())return;
       // pull 요청 직후 사용자가 수정을 시작했을 수도 있으므로 적용 직전 한 번 더 확인한다.
       if(inlineEditing())return;
       const cloud=raw?.state;if(!cloud||typeof cloud!=='object')return;
@@ -90,7 +95,10 @@
       if(typeof window.todoApplyStatusLedger==='function')next=window.todoApplyStatusLedger(next)||next;
       if(raw?.updated_at)next._cloudUpdatedAt=raw.updated_at;
 
+      for(const field of ['moods','notes','events','deadlines','workItems','_fieldUpdatedAt','_todoOrder'])next[field]=cloudSafe[field];
+      window.plannerApplyPendingFields?.(next);
       state=next;
+      window.plannerAcceptBaseline?.(state);
       applyFeatureCopies();
       if(typeof processPostponedTodos==='function')processPostponedTodos(true);
       if(typeof saveLocal==='function')saveLocal();

@@ -10,7 +10,7 @@ function dateKey(d){return`${d.getFullYear()}-${String(d.getMonth()+1).padStart(
 function sameDate(a,b){return dateKey(a)===dateKey(b)}function storageKey(){return`todoPlanner_v3_${userCode||'guest'}`}
 function normalize(raw){if(!raw||typeof raw!=='object')return emptyState();return{version:3,todos:{job:raw.todos?.job||{},work:raw.todos?.work||{}},moods:{job:raw.moods?.job||{},work:raw.moods?.work||{}},events:raw.events||{}}}
 function loadLocal(){try{return normalize(JSON.parse(localStorage.getItem(storageKey())))}catch{return emptyState()}}function saveLocal(){localStorage.setItem(storageKey(),JSON.stringify(state))}
-async function cloudRequest(action,extra={}){if(!CLOUD_READY)return null;const res=await fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{method:'POST',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},body:JSON.stringify({action,code:userCode,...extra})});if(!res.ok)throw new Error(await res.text());return await res.json()}
+async function cloudRequest(action,extra={}){if(!CLOUD_READY)return null;const controller=new AbortController(),timeout=setTimeout(()=>controller.abort(),15000);try{const res=await fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{method:'POST',signal:controller.signal,cache:'no-store',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},body:JSON.stringify({action,code:userCode,...extra})});if(!res.ok)throw new Error(await res.text());return await res.json()}finally{clearTimeout(timeout)}}
 async function loadCloud(){if(!CLOUD_READY)return null;try{const data=await cloudRequest('load');return data?.state||null}catch(e){console.warn(e);setSyncStatus('local');return null}}
 async function saveCloud(){if(!CLOUD_READY)return;try{await cloudRequest('save',{state});setSyncStatus('cloud')}catch(e){console.warn(e);setSyncStatus('local')}}
 function queueSave(){saveLocal();if(CLOUD_READY){clearTimeout(saveTimer);saveTimer=setTimeout(saveCloud,350)}setSyncStatus(CLOUD_READY?'cloud':'local')}
@@ -107,19 +107,27 @@ function mergeBootLocalTodos(cloud,local){
   return {next,rescued};
 }
 async function openPlanner(code){
+  window.plannerBootReady=false;
   userCode=code.trim();if(!userCode)return;
   localStorage.setItem('todoPlanner_activeCode',userCode);
   const local=loadLocal();state=local;
+  if(typeof window.plannerPrepareBoot==='function')window.plannerPrepareBoot();
+  if(typeof window.todoMigrateLegacyOutbox==='function')window.todoMigrateLegacyOutbox();
   if(CLOUD_READY){
     const cloud=await loadCloud();
     if(cloud){
-      const merged=mergeBootLocalTodos(cloud,local);
+      const merged=mergeBootLocalTodos(cloud,state);
       state=merged.next;
+      if(typeof window.plannerApplyPendingFields==='function')window.plannerApplyPendingFields(state);
+      if(typeof window.todoMainAckApplyPending==='function')window.todoMainAckApplyPending();
       merged.rescued.forEach(x=>syncTodoUpsert(x.mode,x.date,x.todo,x.stamp));
     }else await saveCloud();
     saveLocal();
   }
+  if(typeof window.plannerAcceptBaseline==='function')window.plannerAcceptBaseline(state);
+  window.plannerBootReady=true;
   $('loginOverlay').classList.remove('show');renderAll();
+  if(window.plannerSyncPending?.()||window.todoMainAckPending?.())setTimeout(()=>saveCloud(),100);
 }
 function showLogin(){$('codeInput').value=userCode||localStorage.getItem('todoPlanner_activeCode')||'0307';$('loginOverlay').classList.add('show');setTimeout(()=>$('codeInput').focus(),50)}
-$('todoForm').onsubmit=e=>{e.preventDefault();addTodo($('todoInput').value)};$('eventForm').onsubmit=e=>{e.preventDefault();addEvent($('eventInput').value)};$('prev').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);renderCalendar()};$('next').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);renderCalendar()};$('todayBtn').onclick=()=>{selected=new Date(today);view=new Date(today.getFullYear(),today.getMonth(),1);renderAll()};$('idBtn').onclick=showLogin;document.querySelectorAll('.mode-btn').forEach(b=>b.onclick=()=>switchMode(b.dataset.mode));$('codeForm').onsubmit=e=>{e.preventDefault();openPlanner($('codeInput').value)};const savedCode=localStorage.getItem('todoPlanner_activeCode');if(savedCode)openPlanner(savedCode);else showLogin();
+$('todoForm').onsubmit=e=>{e.preventDefault();addTodo($('todoInput').value)};$('eventForm').onsubmit=e=>{e.preventDefault();addEvent($('eventInput').value)};$('prev').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);renderCalendar()};$('next').onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);renderCalendar()};$('todayBtn').onclick=()=>{selected=new Date(today);view=new Date(today.getFullYear(),today.getMonth(),1);renderAll()};$('idBtn').onclick=showLogin;document.querySelectorAll('.mode-btn').forEach(b=>b.onclick=()=>switchMode(b.dataset.mode));$('codeForm').onsubmit=e=>{e.preventDefault();openPlanner($('codeInput').value)};document.addEventListener('DOMContentLoaded',()=>{const savedCode=localStorage.getItem('todoPlanner_activeCode');if(savedCode)openPlanner(savedCode);else showLogin()});
