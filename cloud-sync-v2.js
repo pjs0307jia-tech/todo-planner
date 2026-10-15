@@ -57,7 +57,7 @@
     // 주기 동기화가 state를 갈아끼워 입력 중인 todo 참조를 끊는 문제를 막는다.
     if(inlineEditing())return;
     if(!CLOUD_READY||!userCode||pulling)return;
-    const now=Date.now();if(!force&&now-lastPull<1500)return;
+    const now=Date.now();if(!force&&now-lastPull<60000)return;
     lastPull=now;pulling=true;
     try{
       // Apply and attempt to send local user mutations BEFORE reading cloud.
@@ -110,6 +110,6 @@
   window.addEventListener('focus',()=>setTimeout(()=>pullLatest(true),180));
   window.addEventListener('pageshow',()=>setTimeout(()=>pullLatest(true),220));
   window.addEventListener('online',()=>setTimeout(()=>pullLatest(true),220));
-  setInterval(()=>{if(document.visibilityState==='visible')pullLatest(false)},2000);
+  setInterval(()=>{if(document.visibilityState==='visible')pullLatest(false)},60000);
   setTimeout(()=>pullLatest(true),500);
 })();
