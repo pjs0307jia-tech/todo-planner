@@ -58,6 +58,7 @@ function ownerKey(){return 'ontime-cloud-owner-v1'}
 function trashKey(){return 'ontime-deleted-cloud-'+(cloudUser?.id||'none')}
 function readCloudTrash(){try{cloudDeletes=new Map(JSON.parse(localStorage.getItem(trashKey())||'[]'))}catch(e){cloudDeletes=new Map()}}
 function saveCloudTrash(){try{localStorage.setItem(trashKey(),JSON.stringify([...cloudDeletes]))}catch(e){}}
+function sameDocument(x,y){if(x===y)return true;if(!x||!y||typeof x!==typeof y||typeof x!=='object')return false;if(Array.isArray(x)!==Array.isArray(y))return false;const aa=Object.keys(x),bb=Object.keys(y);if(aa.length!==bb.length)return false;for(const k of aa){if(!Object.prototype.hasOwnProperty.call(y,k)||!sameDocument(x[k],y[k]))return false}return true}
 async function keepRecovery(fo,suffix){if(!fo)return;let copy=structuredClone(fo);copy.id=id();copy.name=(copy.name||'모의고사')+' ('+suffix+' '+new Date().toLocaleDateString('ko-KR')+')';copy.updated=Date.now();await localPutCloud(copy);cloudDirty.add(copy.id)}
 async function syncCloud(){if(cloudBusy||!cloudClient||!cloudUser)return;const priorOwner=localStorage.getItem(ownerKey());if(priorOwner&&priorOwner!==cloudUser.id){cloudState='다른 계정의 로컬 기록 · 동기화 중단';cloudIndicator();return;}if(!priorOwner)try{localStorage.setItem(ownerKey(),cloudUser.id)}catch(e){};cloudBusy=true;cloudState='동기화 중';cloudIndicator();let changed=false,failed=false;
  try{
@@ -75,7 +76,7 @@ async function syncCloud(){if(cloudBusy||!cloudClient||!cloudUser)return;const p
    if(de)throw de;
    const body=rows?.[0]?.body;
    if(!body?.id||body.id!==fid||!Array.isArray(body.areas))continue;
-   if(mine&&JSON.stringify(mine)!==JSON.stringify(body)&&known===undefined){await keepRecovery(mine,'로컬 기록 복구')}else if(mine&&(mine.updated||0)>(head.modified_at||0)-2000 && known!==undefined){await keepRecovery(mine,'동기화 충돌 복구')}
+   if(mine&&!sameDocument(mine,body)){await keepRecovery(mine,known===undefined?'로컬 기록 복구':'동기화 충돌 복구')}
    await localPutCloud(body);cloudKnown.set(fid,head.revision);changed=true;
   }
   // Push new folders and pending local changes, with revision-based conflict protection.
