@@ -9,6 +9,47 @@
   layer.setAttribute('aria-hidden','true');
   document.body.append(layer);
 
+  // Separate, device-local daily counter: never writes to to-do or cloud storage.
+  const countNode=document.getElementById('luckyCountValue');
+  const countKey='todoPlanner_lucky_clicks_v1';
+  const localDate=()=>{
+    const now=new Date();
+    return [now.getFullYear(),String(now.getMonth()+1).padStart(2,'0'),String(now.getDate()).padStart(2,'0')].join('-');
+  };
+  let currentDate=localDate();
+  let clicks=0;
+  const displayCount=()=>{
+    if(countNode)countNode.textContent=clicks.toLocaleString('ko-KR');
+  };
+  const readCount=()=>{
+    const today=localDate();
+    if(currentDate!==today){currentDate=today;clicks=0;}
+    try{
+      const saved=JSON.parse(localStorage.getItem(countKey)||'null');
+      clicks=saved?.date===today&&Number.isSafeInteger(saved.count)&&saved.count>=0?saved.count:0;
+    }catch{
+      // Keep this session's number if browser storage isn't available.
+    }
+    displayCount();
+  };
+  const countOneClick=()=>{
+    const today=localDate();
+    if(currentDate!==today)readCount();
+    try{
+      const saved=JSON.parse(localStorage.getItem(countKey)||'null');
+      if(saved?.date===today&&Number.isSafeInteger(saved.count)&&saved.count>clicks)clicks=saved.count;
+    }catch{}
+    clicks++;
+    currentDate=today;
+    try{localStorage.setItem(countKey,JSON.stringify({date:today,count:clicks}));}catch{}
+    displayCount();
+  };
+  readCount();
+  window.addEventListener('storage',event=>{if(event.key===countKey)readCount();});
+  window.addEventListener('focus',readCount);
+  document.addEventListener('visibilitychange',()=>{if(!document.hidden)readCount();});
+  setInterval(()=>{if(currentDate!==localDate())readCount();},30000);
+
   const reduceMotion=window.matchMedia('(prefers-reduced-motion: reduce)');
   const random=(min,max)=>min+Math.random()*(max-min);
   const sizeFor=(mobile)=>{
@@ -19,6 +60,7 @@
   };
 
   button.addEventListener('click',()=>{
+    countOneClick();
     const rect=button.getBoundingClientRect();
     const width=window.innerWidth;
     const height=window.innerHeight;
