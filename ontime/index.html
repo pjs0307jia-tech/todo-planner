@@ -206,23 +206,33 @@ function selectPDFFiles(newArea){
 }
 function getPDFQuestionStarts(items,pageHeight){
  const texts=items.filter(function(z){return z&&typeof z.str==='string'&&z.str.trim()}).map(function(z){
-  return {s:z.str.trim(),x:z.transform[4],y:pageHeight-z.transform[5]};
+  return {s:z.str.trim(),x:z.transform[4],y:pageHeight-z.transform[5],height:Math.abs(z.height||z.transform[0]||0)};
  });
+ // PDF pages can contain 1, 2, 7 or more separate questions.
+ // Recognize the left-margin heading marker by its position, typography and adjacent prompt.
+ // Avoid mistaking chart-axis values, table cells, options, footnotes or page titles for question numbers.
  let starts=[];
  for(let i=0;i<texts.length;i++){
-  const w=texts[i],hit=/^(0?[1-9]|1[0-9]|20)$/.exec(w.s);
-  if(!hit||w.x<10||w.x>72)continue;
-  // Only recognize an actual numbered question heading, not data values or graph tick marks.
-  const near=texts.some(function(z){return z.x>w.x+10&&z.x<w.x+150&&Math.abs(z.y-w.y)<15&&/^다음/.test(z.s)});
-  if(near&&!starts.some(function(z){return Math.abs(z.y-w.y)<10})){
-   starts.push({number:Number(hit[1]),y:w.y});
-  }
+  const w=texts[i],hit=/^(0?[1-9]|[1-9][0-9]|[1-9][0-9][0-9])$/.exec(w.s);
+  if(!hit||w.x<10||w.x>95||w.height<9.6)continue;
+  const near=texts.some(function(z){
+    return z!==w&&z.x>w.x+13&&z.x<w.x+110&&Math.abs(z.y-w.y)<19&&z.s.length>=9&&!/^[\d.,%-]+$/.test(z.s);
+  });
+  if(!near)continue;
+  if(starts.some(function(z){return Math.abs(z.y-w.y)<10}))continue;
+  starts.push({number:Number(hit[1]),y:w.y,x:w.x});
  }
- return {starts:starts.sort(function(a,b){return a.y-b.y}),texts:texts};
+ // Numbering increases within each page. Discard spurious detections without hiding real questions.
+ starts.sort(function(a,b){return a.y-b.y});
+ const clean=[];
+ for(const s of starts){
+  if(clean.length&&s.number<=clean[clean.length-1].number)continue;
+  clean.push(s);
+ }
+ return {starts:clean,texts:texts};
 }
 async function pdfPageToEntries(page,pageNo,fileName,pdf){
- const viewport=page.getViewport({scale:1.8});
- const base=page.getViewport({scale:1});
+ const base=page.getViewport({scale:1}),viewport=page.getViewport({scale:1.85});
  const content=await page.getTextContent({disableCombineTextItems:false});
  const scan=getPDFQuestionStarts(content.items,base.height);
  const starts=scan.starts.length?scan.starts:[{number:null,y:25}];
@@ -232,26 +242,25 @@ async function pdfPageToEntries(page,pageNo,fileName,pdf){
  const ctx=canvas.getContext('2d',{alpha:false});
  ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);
  await page.render({canvasContext:ctx,viewport:viewport}).promise;
- const ratio=viewport.height/base.height;
- const entries=[];
+ const ratio=canvas.height/base.height,entries=[];
  for(let j=0;j<starts.length;j++){
   const start=starts[j],next=starts[j+1];
-  const y0=Math.max(0,start.y-17);
-  const lastY=scan.texts.filter(function(z){return z.y>start.y&&(!next||z.y<next.y-8)}).reduce(function(v,z){return Math.max(v,z.y)},start.y+130);
-  const y1=next?Math.max(start.y+125,next.y-18):Math.min(base.height-17,Math.max(start.y+180,lastY+28));
-  const top=Math.max(0,Math.round(y0*ratio));
-  const bottom=Math.min(canvas.height,Math.round(y1*ratio));
-  const cut=document.createElement('canvas');
-  cut.width=canvas.width;cut.height=Math.max(120,bottom-top);
-  const out=cut.getContext('2d',{alpha:false});out.fillStyle='#fff';out.fillRect(0,0,cut.width,cut.height);
-  out.drawImage(canvas,0,top,canvas.width,Math.min(canvas.height-top,cut.height),0,0,cut.width,Math.min(canvas.height-top,cut.height));
-  const url=cut.toDataURL('image/jpeg',.87);
-  entries.push({
-   id:id(),text:'',choices:[],image:url,figures:[],hasDiagram:true,
+  // Different headings have different font baselines; include the top of the number.
+  const y0=Math.max(0,start.y-23);
+  const lastY=scan.texts.filter(function(z){return z.y>start.y&&(!next||z.y<next.y-18)}).reduce(function(v,z){return Math.max(v,z.y)},start.y+85);
+  // Stop before the following numbered problem; keep tables, figures, fractional choices.
+  const y1=next?Math.max(start.y+35,next.y-23):Math.min(base.height-8,Math.max(start.y+105,lastY+24));
+  const top=Math.max(0,Math.round(y0*ratio)),bottom=Math.min(canvas.height,Math.round(y1*ratio));
+  const height=Math.max(1,bottom-top),cut=document.createElement('canvas');
+  cut.width=canvas.width;cut.height=height;
+  const out=cut.getContext('2d',{alpha:false});
+  out.fillStyle='#fff';out.fillRect(0,0,cut.width,cut.height);
+  out.drawImage(canvas,0,top,canvas.width,height,0,0,cut.width,height);
+  const url=cut.toDataURL('image/jpeg',.88);
+  entries.push({id:id(),text:'',choices:[],image:url,figures:[],hasDiagram:true,
    ocrVerified:false,pdfOriginal:true,sourceNumber:start.number?String(start.number):'',
    sourcePage:pageNo,originalName:fileName,
-   answer:'',official:'',aiAnswer:'',explanation:'',reason:'',flag:false,aiStatus:'pdf'
-  });
+   answer:'',official:'',aiAnswer:'',explanation:'',reason:'',flag:false,aiStatus:'pdf'});
   cut.width=0;cut.height=0;
  }
  canvas.width=0;canvas.height=0;
