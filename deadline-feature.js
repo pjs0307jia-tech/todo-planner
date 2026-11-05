@@ -183,7 +183,13 @@ renderCalendar=function(){_deadlineRenderCalendar();renderCalendarDeadlines()};
 const _deadlineRenderAll=renderAll;
 renderAll=function(){_deadlineRenderAll();renderDeadlineFeature()};
 const _deadlineOpenPlanner=openPlanner;
-openPlanner=async function(code){applicationDeadlines=[];selectedDeadlinePopupOpen=false;await _deadlineOpenPlanner(code);loadDeadlineData();renderAll()};
+openPlanner=async function(...args){
+  await _deadlineOpenPlanner(...args);
+  if(!window.plannerBootReady)return;
+  selectedDeadlinePopupOpen=false;
+  await loadDeadlineData();
+  renderAll();
+};
 
 function bootDeadlineFeature(){
   if(deadlineBooted)return;deadlineBooted=true;setupDeadlineEvents();

@@ -248,7 +248,12 @@ renderCalendar=function(){_workRenderCalendar();renderWorkCalendarItems()};
 const _workRenderAll=renderAll;
 renderAll=function(){_workRenderAll();renderWorkFeature()};
 const _workOpenPlanner=openPlanner;
-openPlanner=async function(code){workItems=[];await _workOpenPlanner(code);await loadWorkData();renderAll()};
+openPlanner=async function(...args){
+  await _workOpenPlanner(...args);
+  if(!window.plannerBootReady)return;
+  await loadWorkData();
+  renderAll();
+};
 
 function bootWorkFeature(){
   if(workFeatureBooted)return;workFeatureBooted=true;ensureWorkTypeField();setPanelCopyForMode();
