@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="app-build" content="20261016-lucky-clover-v5">
+<meta name="app-build" content="20261106-planner-login-v1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -18,7 +18,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="/todo-planner/todo-logo-final-180.png">
 <link rel="manifest" href="/todo-planner/manifest.webmanifest?v=70">
 <script src="theme-v1.js"></script>
-<script src="cloud-limit-guard-v2.js"></script>
+<script src="cloud-limit-guard-v3.js"></script>
 <link rel="stylesheet" href="style.css?v=27">
 <link rel="stylesheet" href="edit-override.css?v=30">
 <link rel="stylesheet" href="deadline-feature.css?v=27">
@@ -35,7 +35,7 @@
 <script>
 (function(){
   try{
-    const BUILD='20261016-lucky-clover-v5';
+    const BUILD='20261106-planner-login-v1';
     const key='todoPlanner_client_build';
     const prev=localStorage.getItem(key)||'';
     localStorage.setItem(key,BUILD);
@@ -62,7 +62,7 @@
 </style>
 </head>
 <body data-mode="job">
-<main class="wrap">
+<main class="wrap" id="plannerMain" inert style="visibility:hidden">
   <header class="hero">
     <div class="hero-left">
       <h1>TO-DO!</h1>
@@ -155,12 +155,16 @@
   </section>
 </main>
 
-<div class="login-overlay" id="loginOverlay">
+<div class="login-overlay show" id="loginOverlay" style="z-index:1200" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="login-card">
-    <h2>내 TO-DO 열기</h2>
-    <p>식별번호로 내 플래너를 구분해요.<br>지수는 <strong>0307</strong>을 입력하면 돼요.</p>
-    <form class="code-form" id="codeForm"><input class="code-input" id="codeInput" inputmode="numeric" autocomplete="off" maxlength="12" value="0307"><button class="code-go">열기</button></form>
-    <div class="login-foot">※ 4자리 식별번호는 강한 비밀번호가 아니라 개인 플래너 구분용이에요.</div>
+    <h2 id="loginTitle">내 TO-DO 열기</h2>
+    <p>아이디와 비밀번호를 입력해 주세요.</p>
+    <form class="code-form" id="codeForm" style="flex-direction:column">
+      <input class="code-input" id="codeInput" name="username" inputmode="numeric" autocomplete="username" pattern="[0-9]{4,12}" maxlength="12" placeholder="아이디" aria-label="아이디" required>
+      <input class="code-input" id="plannerPassword" name="password" type="password" inputmode="numeric" autocomplete="current-password" pattern="[0-9]{4}" maxlength="4" placeholder="비밀번호" aria-label="비밀번호">
+      <button class="code-go" id="codeGo" style="min-height:42px">열기</button>
+    </form>
+    <p id="loginMessage" role="status" aria-live="polite" hidden></p>
   </div>
 </div>
 <div class="toast" id="toast"></div>
@@ -188,7 +192,8 @@
   }catch{}
 })();
 </script>
-<script src="app-sync-v88.js"></script>
+<script src="planner-session-v1.js"></script>
+<script src="app-sync-v89.js"></script>
 <script src="storage-safety-v3.js"></script>
 <script src="todo-main-ack-v3.js"></script>
 <script src="todo-vault-outbox-v3.js"></script>

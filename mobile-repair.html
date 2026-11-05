@@ -17,6 +17,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Pretendard",sans-serif;backgr
 <button id="apply" class="btn" disabled>이 서버값으로 모바일 복구</button>
 <div class="small">복구 전 현재 휴대폰 상태는 별도 백업으로 남겨둡니다. 복구 버튼을 누른 뒤 최신 앱 화면으로 이동합니다.</div>
 </div>
+<script src="planner-session-v1.js"></script>
 <script>
 const SUPABASE_URL='https://empbjojdpmeaottpesdt.supabase.co';
 const SUPABASE_ANON_KEY='sb_publishable_Af6LxJzQGT8Emahn-B30DA_IjC7hy0g';
@@ -39,10 +40,12 @@ function render(){
 }
 async function load(){
   try{
-    const r=await fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY},body:JSON.stringify({action:'load',code:CODE,_:Date.now()})});
-    if(!r.ok)throw new Error(await r.text());
+    if(!window.plannerSession.read())throw new Error('login_required');
+    const r=await fetch(`${SUPABASE_URL}/functions/v1/planner-sync`,{method:'POST',cache:'no-store',headers:{'Content-Type':'application/json','apikey':SUPABASE_ANON_KEY,...window.plannerSession.headers()},body:JSON.stringify({action:'load',code:CODE,_:Date.now()})});
+    if(!r.ok)throw new Error(r.status===401?'login_required':'server_error');
     const data=await r.json();serverState=data?.state||null;if(!serverState)throw new Error('state 없음');render();
-  }catch(e){$('status').className='status warn';$('status').textContent='서버 연결 실패: '+e.message;}
+  }catch(e){$('status').className='status warn';if(e.message==='login_required')$('status').innerHTML='플래너에 로그인한 뒤 이 페이지를 다시 열어 주세요. <a href="./">플래너 열기</a>';
+    else $('status').textContent='서버에 연결하지 못했어요. 잠시 뒤 다시 시도해 주세요.';}
 }
 $('apply').onclick=async()=>{
   if(!serverState)return;

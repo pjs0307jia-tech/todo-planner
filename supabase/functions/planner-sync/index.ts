@@ -2,7 +2,8 @@ import { createClient } from 'npm:@supabase/supabase-js@2.95.0'
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'content-type, apikey, authorization',
+  'Access-Control-Allow-Headers': 'content-type, apikey, authorization, x-planner-session',
+  'Cache-Control': 'no-store',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
 }
 
@@ -109,24 +110,46 @@ function collectTodoItems(state: any) {
   return out
 }
 
+// Use the immutable unique todo ID as a cursor. A single PostgREST query is
+// capped by the project's row limit, even when the client omits a limit.
+async function readAllVaultRows(supabase: any, ownerHash: string, columns: string) {
+  const rows: any[] = []
+  let afterId: string | null = null
+  while (true) {
+    let query = supabase
+      .from('planner_todo_items')
+      .select(columns)
+      .eq('owner_hash', ownerHash)
+      .order('todo_id', { ascending: true })
+      .limit(500)
+    if (afterId !== null) query = query.gt('todo_id', afterId)
+    const { data, error } = await query
+    if (error) throw error
+    const page = data || []
+    // Read until an empty page, rather than assuming a short page is the end:
+    // the server's configured maximum may be smaller than our requested page.
+    if (page.length === 0) break
+    const nextId = String(page[page.length - 1].todo_id || '')
+    if (!nextId || nextId === afterId) throw new Error('Vault pagination did not advance')
+    rows.push(...page)
+    afterId = nextId
+  }
+  return rows
+}
+
 async function hydrateFromVault(supabase: any, ownerHash: string, state: any) {
-  const { data, error } = await supabase
-    .from('planner_todo_items')
-    .select('todo_id,mode,todo_date,payload,deleted_at,server_updated_at')
-    .eq('owner_hash', ownerHash)
-    .order('server_updated_at', { ascending: true })
-  if (error) throw error
-  return mergeVaultRowsIntoState(state, data || [])
+  const rows = await readAllVaultRows(
+    supabase, ownerHash, 'todo_id,mode,todo_date,payload,deleted_at,server_updated_at'
+  )
+  // Preserve the original merge order after fetching every page.
+  rows.sort((a, b) => timeMs(a.server_updated_at) - timeMs(b.server_updated_at) ||
+    String(a.todo_id).localeCompare(String(b.todo_id)))
+  return mergeVaultRowsIntoState(state, rows)
 }
 
 async function mirrorMissingTodosToVault(supabase: any, ownerHash: string, state: any) {
   const incoming = collectTodoItems(state)
-  const { data: existing, error: existingError } = await supabase
-    .from('planner_todo_items')
-    .select('todo_id,deleted_at')
-    .eq('owner_hash', ownerHash)
-  if (existingError) throw existingError
-
+  const existing = await readAllVaultRows(supabase, ownerHash, 'todo_id,deleted_at')
   const existingMap = new Map((existing || []).map((x: any) => [String(x.todo_id), x]))
   const sourceTs = state?._updatedAt ? new Date(state._updatedAt).toISOString() : new Date().toISOString()
   const rows = incoming
@@ -311,6 +334,44 @@ Deno.serve(async (req) => {
 
     const ownerHash = await sha256(code)
     const supabase = adminClient()
+
+    if (code === '0307') {
+      if (action === 'login') {
+        const password = body?.password
+        if (typeof password !== 'string' || !/^\d{4}$/.test(password)) {
+          return Response.json({ error: 'invalid_credentials' }, { status: 401, headers: corsHeaders })
+        }
+        const bytes = crypto.getRandomValues(new Uint8Array(32))
+        const token = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('')
+        const { data, error } = await supabase.rpc('planner_pin_login', {
+          p_owner_hash: ownerHash,
+          p_password: password,
+          p_token_hash: await sha256(token),
+        })
+        // Do not log authentication RPC errors, which could include request details.
+        if (error) return Response.json({ error: 'server_error' }, { status: 500, headers: corsHeaders })
+        if (data !== 'ok') {
+          const limited = data === 'too_many_attempts'
+          return Response.json({ error: data }, { status: limited ? 429 : 401, headers: corsHeaders })
+        }
+        return Response.json({ token }, { headers: corsHeaders })
+      }
+
+      const token = req.headers.get('x-planner-session') || ''
+      if (!/^[0-9a-f]{64}$/.test(token)) {
+        return Response.json({ error: 'login_required' }, { status: 401, headers: corsHeaders })
+      }
+      const { data: valid, error } = await supabase.rpc('planner_pin_session', {
+        p_owner_hash: ownerHash,
+        p_token_hash: await sha256(token),
+        p_revoke: action === 'logout',
+      })
+      if (error) throw error
+      if (!valid) return Response.json({ error: 'login_required' }, { status: 401, headers: corsHeaders })
+      if (action === 'session' || action === 'logout') {
+        return Response.json({ ok: true }, { headers: corsHeaders })
+      }
+    }
 
     if (action === 'patch') {
       const operations = body.operations
