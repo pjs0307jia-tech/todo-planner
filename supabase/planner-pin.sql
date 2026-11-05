@@ -53,7 +53,7 @@ begin
     where owner_hash = p_owner_hash;
   delete from planner_private.pin_sessions where owner_hash = p_owner_hash and expires_at <= checked_at;
   insert into planner_private.pin_sessions(token_hash, owner_hash, expires_at)
-    values (p_token_hash, p_owner_hash, checked_at + interval '12 hours');
+    values (p_token_hash, p_owner_hash, 'infinity'::timestamptz);
   return 'ok';
 end
 $$;
