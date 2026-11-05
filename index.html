@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="app-build" content="20261106-planner-login-v3">
+<meta name="app-build" content="20261106-planner-login-v4">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -35,7 +35,7 @@
 <script>
 (function(){
   try{
-    const BUILD='20261106-planner-login-v3';
+    const BUILD='20261106-planner-login-v4';
     const key='todoPlanner_client_build';
     const prev=localStorage.getItem(key)||'';
     localStorage.setItem(key,BUILD);
@@ -48,6 +48,8 @@
 })();
 </script>
 <style>
+#plannerStartupError:not([hidden]){position:fixed;inset:0;display:grid;place-content:center;justify-items:center;padding:20px;text-align:center}
+#plannerStartupError p{color:var(--muted);font-size:14px}
 @media (min-width:801px){
   .side,.deadline-panel{display:flex;flex-direction:column;overflow:hidden}
   .side .todo-list,.deadline-panel .deadline-scroll{flex:1;min-height:0;overflow-y:auto}
@@ -155,7 +157,7 @@
   </section>
 </main>
 
-<div class="login-overlay show" id="loginOverlay" style="z-index:1200" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
+<div class="login-overlay" id="loginOverlay" hidden style="z-index:1200" role="dialog" aria-modal="true" aria-labelledby="loginTitle">
   <div class="login-card">
     <h2 id="loginTitle">내 TO-DO 열기</h2>
     <p>아이디와 비밀번호를 입력해 주세요.</p>
@@ -166,6 +168,10 @@
     </form>
     <p id="loginMessage" role="status" aria-live="polite" hidden></p>
   </div>
+</div>
+<div id="plannerStartupError" hidden>
+  <p role="status">플래너에 연결하지 못했어요.</p>
+  <button type="button" class="id-pill" id="plannerRetry">다시 연결</button>
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -193,7 +199,7 @@
 })();
 </script>
 <script src="planner-session-v2.js"></script>
-<script src="app-sync-v90.js"></script>
+<script src="app-sync-v91.js"></script>
 <script src="storage-safety-v3.js"></script>
 <script src="todo-main-ack-v3.js"></script>
 <script src="todo-vault-outbox-v3.js"></script>
