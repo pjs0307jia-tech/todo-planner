@@ -137,11 +137,8 @@ async function readAllVaultRows(supabase: any, ownerHash: string, columns: strin
   return rows
 }
 
-async function hydrateFromVault(supabase: any, ownerHash: string, state: any) {
-  const rows = await readAllVaultRows(
-    supabase, ownerHash, 'todo_id,mode,todo_date,payload,deleted_at,server_updated_at'
-  )
-  // Preserve the original merge order after fetching every page.
+function hydrateFromVault(state: any, rows: any[]) {
+  // The vault and snapshot are merged in the same order for both load paths.
   rows.sort((a, b) => timeMs(a.server_updated_at) - timeMs(b.server_updated_at) ||
     String(a.todo_id).localeCompare(String(b.todo_id)))
   return mergeVaultRowsIntoState(state, rows)
@@ -320,7 +317,9 @@ async function patchFields(supabase: any, ownerHash: string, operations: any[]) 
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: { ...corsHeaders, 'Access-Control-Max-Age': '600' } })
+  }
   if (req.method !== 'POST') return new Response('Method not allowed', { status: 405, headers: corsHeaders })
 
   try {
@@ -361,9 +360,20 @@ Deno.serve(async (req) => {
       if (!/^[0-9a-f]{64}$/.test(token)) {
         return Response.json({ error: 'login_required' }, { status: 401, headers: corsHeaders })
       }
+      const tokenHash = await sha256(token)
+      if (action === 'load') {
+        const { data, error } = await supabase.rpc('planner_load_bundle', {
+          p_owner_hash: ownerHash,
+          p_token_hash: tokenHash,
+        })
+        if (error) throw error
+        if (!data) return Response.json({ error: 'login_required' }, { status: 401, headers: corsHeaders })
+        const state = hydrateFromVault(data.state, data.rows)
+        return Response.json({ state, updated_at: data.updated_at }, { headers: corsHeaders })
+      }
       const { data: valid, error } = await supabase.rpc('planner_pin_session', {
         p_owner_hash: ownerHash,
-        p_token_hash: await sha256(token),
+        p_token_hash: tokenHash,
         p_revoke: action === 'logout',
       })
       if (error) throw error
@@ -389,7 +399,8 @@ Deno.serve(async (req) => {
         .eq('owner_hash', ownerHash)
         .maybeSingle()
       if (error) throw error
-      const hydrated = await hydrateFromVault(supabase, ownerHash, data?.state ?? {})
+      const rows = await readAllVaultRows(supabase, ownerHash, 'todo_id,mode,todo_date,payload,deleted_at,server_updated_at')
+      const hydrated = hydrateFromVault(data?.state ?? {}, rows)
       return Response.json({ state: hydrated, updated_at: data?.updated_at ?? null }, { headers: corsHeaders })
     }
 

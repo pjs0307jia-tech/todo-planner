@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="app-build" content="20261106-planner-login-v4">
+<meta name="app-build" content="20261106-planner-fast-start-v1">
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -17,6 +17,7 @@
 <link rel="shortcut icon" href="/todo-planner/todo-logo-final-180.png">
 <link rel="apple-touch-icon" sizes="180x180" href="/todo-planner/todo-logo-final-180.png">
 <link rel="manifest" href="/todo-planner/manifest.webmanifest?v=70">
+<link rel="preconnect" href="https://empbjojdpmeaottpesdt.supabase.co" crossorigin>
 <script src="theme-v1.js"></script>
 <script src="cloud-limit-guard-v3.js"></script>
 <link rel="stylesheet" href="style.css?v=27">
@@ -32,21 +33,6 @@
 <link rel="stylesheet" href="side-compact-v1.css?v=4">
 <link rel="stylesheet" href="theme-v1.css">
 <link rel="stylesheet" href="lucky-clover-v2.css?v=5">
-<script>
-(function(){
-  try{
-    const BUILD='20261106-planner-login-v4';
-    const key='todoPlanner_client_build';
-    const prev=localStorage.getItem(key)||'';
-    localStorage.setItem(key,BUILD);
-    const reloadKey=`todoPlanner_build_reload_${BUILD}`;
-    if(prev&&prev!==BUILD&&!sessionStorage.getItem(reloadKey)){
-      sessionStorage.setItem(reloadKey,'1');
-      const u=new URL(location.href);u.searchParams.set('build',BUILD);location.replace(u.toString());
-    }
-  }catch{}
-})();
-</script>
 <style>
 #plannerStartupError:not([hidden]){position:fixed;inset:0;display:grid;place-content:center;justify-items:center;padding:20px;text-align:center}
 #plannerStartupError p{color:var(--muted);font-size:14px}
@@ -199,14 +185,14 @@
 })();
 </script>
 <script src="planner-session-v2.js"></script>
-<script src="app-sync-v91.js"></script>
+<script src="app-sync-v92.js"></script>
 <script src="storage-safety-v3.js"></script>
 <script src="todo-main-ack-v3.js"></script>
 <script src="todo-vault-outbox-v3.js"></script>
 <script src="todo-delete-guard-v1.js?v=7"></script>
 <script src="todo-save-guard-v1.js?v=6"></script>
 <script src="calendar-doubletap-v3.js?v=1"></script>
-<script src="splash-v3.js"></script>
+<script src="splash-v4.js"></script>
 <script src="palette-override.js?v=72"></script>
 <script src="edit-override.js?v=30"></script>
 <script src="deadline-feature.js?v=82"></script>
@@ -215,7 +201,7 @@
 <script src="desktop-interactions.js?v=93"></script>
 <script src="todo-reorder-v2.js?v=3"></script>
 <script src="diary-note-v2.js?v=1"></script>
-<script src="cloud-sync-v3.js"></script>
+<script src="cloud-sync-v4.js"></script>
 <script src="todo-rollover-v1.js?v=5"></script>
 <script src="lucky-clover-v2.js?v=5"></script>
 <script>
