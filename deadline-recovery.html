@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ko">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>원서 마감 백업 찾기</title>
+<style>
+  body{margin:0;padding:28px 16px;background:#fff8fb;color:#4c454a;font:16px/1.6 system-ui}
+  main{max-width:560px;margin:24px auto;padding:24px;background:white;border:1px solid #efdee6;border-radius:20px}
+  h1{font-size:24px;margin:0 0 12px}button{font:inherit;padding:10px 16px;border:0;border-radius:10px;background:#ba426f;color:white;cursor:pointer}
+</style>
+<main>
+  <h1>원서 마감 백업 찾기</h1>
+  <p>이 기기에 남아 있는 원서 마감 기록을 확인합니다. 플래너 데이터는 바뀌지 않아요.</p>
+  <p id="status" role="status">백업을 찾는 중이에요.</p>
+  <button id="download" type="button" hidden>원서 마감 백업 내려받기</button>
+</main>
+<script src="planner-session-v2.js"></script>
+<script>
+  const statusText=document.getElementById('status');
+  const download=document.getElementById('download');
+
+  function parse(raw){try{return JSON.parse(raw)}catch{return null}}
+
+  function findSnapshots(code){
+    const snapshots=[];
+    function add(source,state,at=''){
+      const deadlines=Array.isArray(state?.deadlines)?state.deadlines.filter(item=>item?.id&&item.company&&item.date):[];
+      if(deadlines.length)snapshots.push({source,at:state?._updatedAt||at,deadlines});
+    }
+    function read(key){
+      const fallback=parse(sessionStorage.getItem(`todoPlanner_storage_fallback_${key}`));
+      return parse(fallback?.value??localStorage.getItem(key));
+    }
+    add('이 기기의 현재 기록',read(`todoPlanner_v3_${code}`));
+    add('브라우저 복구본',read(`todoPlanner_boot_rescue_${code}`));
+    add('보존한 원서 마감 복구본',read(`todoPlanner_deadline_rescue_${code}`));
+    add('현재 탭의 시작 기록',parse(sessionStorage.getItem(`todoPlanner_preload_snapshot_${code}`)));
+    const history=read(`todoPlanner_local_history_${code}`);
+    if(Array.isArray(history))history.forEach(entry=>add('이 기기의 저장 이력',entry?.state,entry?.at));
+    add('원서 마감 목록',{deadlines:read(`todoPlanner_deadlines_${code}`)});
+    for(let i=0;i<localStorage.length;i++){
+      const key=localStorage.key(i);
+      if(key?.startsWith(`todoPlanner_mobile_repair_backup_${code}_`))add('이전 모바일 복구본',read(key));
+      if(key?.startsWith('planner_manual_recovery_before_')){
+        const manual=read(key);
+        add('이전 수동 복구본',parse(manual?.[`todoPlanner_v3_${code}`]));
+      }
+    }
+    return snapshots;
+  }
+
+  async function scan(){
+    try{
+      const code=localStorage.getItem('todoPlanner_activeCode');
+      if(!/^\d{4,12}$/.test(code||'')){
+        statusText.textContent='이 브라우저에서 플래너 저장 기록을 찾지 못했어요.';
+        return;
+      }
+      if(window.plannerSession.requiresPassword(code)){
+        const session=window.plannerSession.read();
+        const response=session&&await fetch('https://empbjojdpmeaottpesdt.supabase.co/functions/v1/planner-sync',{
+          method:'POST',headers:{'Content-Type':'application/json','apikey':'sb_publishable_Af6LxJzQGT8Emahn-B30DA_IjC7hy0g','x-planner-session':session},
+          body:JSON.stringify({action:'session',code})
+        });
+        if(!response?.ok){statusText.textContent='이 브라우저에서 플래너 로그인 세션을 확인하지 못했어요.';return}
+      }
+      const snapshots=findSnapshots(code);
+      const count=new Set(snapshots.flatMap(snapshot=>snapshot.deadlines.map(item=>item.id))).size;
+      statusText.textContent=count?`백업에서 원서 마감 ${count}건을 찾았어요. 아래 버튼으로 저장하세요.`:'이 브라우저의 백업에서 원서 마감 기록을 찾지 못했어요.';
+      if(!count)return;
+      download.hidden=false;
+      download.onclick=()=>{
+        const file=new Blob([JSON.stringify({snapshots})],{type:'application/json'});
+        const url=URL.createObjectURL(file);
+        const link=document.createElement('a');
+        link.href=url;link.download='planner_deadline_backup.json';link.click();
+        setTimeout(()=>URL.revokeObjectURL(url),1000);
+      };
+    }catch{statusText.textContent='백업을 읽는 중 오류가 났어요.'}
+  }
+
+  scan();
+</script>
+</html>

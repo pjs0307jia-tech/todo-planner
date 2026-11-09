@@ -30,11 +30,13 @@ function normalizeDeadlineList(list){
 }
 
 function syncDeadlineState(){
-  if(!userCode)return;
+  if(!userCode||!window.plannerBootReady)return;
   const source=state&&Array.isArray(state.deadlines)?state.deadlines:loadDeadlineLocal();
   const next=normalizeDeadlineList(source);
-  if(JSON.stringify(next)!==JSON.stringify(applicationDeadlines))applicationDeadlines=next;
-  saveDeadlineLocal();
+  if(JSON.stringify(next)!==JSON.stringify(applicationDeadlines)){
+    applicationDeadlines=next;
+    saveDeadlineLocal();
+  }
 }
 
 function persistDeadlines(){
@@ -150,7 +152,6 @@ function renderSelectedDeadlines(forceOpen=false){
 function openSelectedDeadlinePopup(){renderSelectedDeadlines(true)}
 
 function renderDeadlineFeature(){
-  syncDeadlineState();
   const panel=$('deadlinePanel');if(panel)panel.style.display=activeMode==='job'?'flex':'none';
   if(activeMode==='job'){renderDeadlineBoard();renderSelectedDeadlines(false)}
 }
@@ -176,10 +177,8 @@ function setupDeadlineEvents(){
   document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSelectedDeadlinePopup()});
 }
 
-const _deadlineQueueSave=queueSave;
-queueSave=function(){if(state&&typeof state==='object')state.deadlines=applicationDeadlines;saveDeadlineLocal();_deadlineQueueSave()};
 const _deadlineRenderCalendar=renderCalendar;
-renderCalendar=function(){_deadlineRenderCalendar();renderCalendarDeadlines()};
+renderCalendar=function(){syncDeadlineState();_deadlineRenderCalendar();renderCalendarDeadlines()};
 const _deadlineRenderAll=renderAll;
 renderAll=function(){_deadlineRenderAll();renderDeadlineFeature()};
 const _deadlineOpenPlanner=openPlanner;

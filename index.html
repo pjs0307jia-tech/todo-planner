@@ -176,7 +176,15 @@
       return n;
     };
     const local=parse(localRaw),existing=parse(existingRaw);
-    if(existingRaw)localStorage.setItem(rescueKey,existingRaw);
+    if(existingRaw){
+      if(!local?.deadlines?.length){
+        const previous=existing?.deadlines?.length?existing:parse(localStorage.getItem(rescueKey));
+        if(previous?.deadlines?.length)try{
+          localStorage.setItem(`todoPlanner_deadline_rescue_${code}`,JSON.stringify({deadlines:previous.deadlines,_updatedAt:previous._updatedAt}));
+        }catch{}
+      }
+      localStorage.setItem(rescueKey,existingRaw);
+    }
     if(!existingRaw&&localRaw){sessionStorage.setItem(key,localRaw);return}
     if(!localRaw)return;
     const lt=Date.parse(local?._updatedAt||'')||0,et=Date.parse(existing?._updatedAt||'')||0;
@@ -195,7 +203,7 @@
 <script src="splash-v4.js"></script>
 <script src="palette-override.js?v=72"></script>
 <script src="edit-override.js?v=30"></script>
-<script src="deadline-feature.js?v=82"></script>
+<script src="deadline-feature.js?v=83"></script>
 <script src="day-manager-v2.js?v=2"></script>
 <script src="work-type-other.js?v=1"></script>
 <script src="desktop-interactions.js?v=93"></script>
